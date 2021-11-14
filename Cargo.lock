@@ -478,6 +478,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mtsc"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "downloader",
+ "semver",
+ "v8",
+]
+
+[[package]]
 name = "native-tls"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -794,16 +804,6 @@ checksum = "5dc90fe6c7be1a323296982db1836d1ea9e47b6839496dde9a541bc496df3516"
 dependencies = [
  "libc",
  "winapi",
-]
-
-[[package]]
-name = "stc"
-version = "0.1.0"
-dependencies = [
- "clap",
- "downloader",
- "semver",
- "v8",
 ]
 
 [[package]]

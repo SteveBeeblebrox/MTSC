@@ -11,7 +11,7 @@ use std::error::Error;
 use std::convert::TryFrom;
 
 fn main() {
-    let matches = App::new("STC")
+    let matches = App::new("MTSC")
         .version(clap::crate_version!())
         .author("S B. <@gmail.com>")
         .about("A standalone TypeScript compiler")
@@ -86,7 +86,7 @@ fn main() {
     }
 }
 
-const CACHE: &str = "./.stc_cache";
+const CACHE: &str = "./.mtsc";
 
 fn check_version(text: &str) -> Result<&str, Box<dyn Error>> {
     match text {
