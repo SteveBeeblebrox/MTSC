@@ -1,11 +1,13 @@
-use semver::Version;
-use std::fs::File;
-use clap::{Arg, App};
-use std::fs;
 use downloader::Downloader;
-use std::error::Error;
+use semver::Version;
+use clap::{Arg, App};
+
 use std::path::{Path, PathBuf};
 use std::io::prelude::*;
+use std::fs::File;
+use std::fs;
+
+use std::error::Error;
 use std::convert::TryFrom;
 
 fn main() {
@@ -56,29 +58,11 @@ fn main() {
         },
         None => (),
     }
-
-    /*let platform = v8::new_default_platform(0, false).make_shared();
-    v8::V8::initialize_platform(platform);
-    v8::V8::initialize();
-
-    let isolate = &mut v8::Isolate::new(Default::default());
-
-    let scope = &mut v8::HandleScope::new(isolate);
-    let context = v8::Context::new(scope);
-    let scope = &mut v8::ContextScope::new(scope, context);
-
-    let code = v8::String::new(scope, "'Hello' + ' World!'").unwrap();
-    println!("javascript code: {}", code.to_rust_string_lossy(scope));
-
-    let script = v8::Script::compile(scope, code, None).unwrap();
-    let result = script.run(scope).unwrap();
-    let result = result.to_string(scope).unwrap();
-    println!("result: {}", result.to_rust_string_lossy(scope));*/
 }
 
 const CACHE: &str = "./.stc_cache";
 
-fn checkVersion(text: &str) -> Result<&str, Box<dyn Error>> {
+fn check_version(text: &str) -> Result<&str, Box<dyn Error>> {
     match text {
         "latest" => Ok(text),
         _ => match Version::parse(text) {
@@ -125,19 +109,18 @@ let n = v8::String::new(scope, "transpile").unwrap().into();
             let transpile_function = v8::Local::<v8::Function>::try_from(transpile)
             .expect("function expected");
 
-let n = v8::String::new(scope, fs::read_to_string("test.ts").expect("Some error").as_str()).unwrap().into();
+            let n = v8::String::new(scope, fs::read_to_string("test.ts").expect("Some error").as_str()).unwrap().into();
 
             let javascript = transpile_function
             .call(scope, 
             ts,
                 &[n]
             ).unwrap().to_string(scope).unwrap().to_rust_string_lossy(scope);
-//println!("{}", js);
-            /*let javascript = result.to_rust_string_lossy(scope);*/
+
             let mut path = PathBuf::from(target);
             path.set_extension("js");
             let mut file = File::create(path).unwrap();
-            file.write_all(javascript.as_bytes());/**/
+            file.write_all(javascript.as_bytes());
             Ok(())
         },
         Err(e) => return Err(format!("Unable to read input file ({}).", e.to_string()).into())
@@ -145,7 +128,7 @@ let n = v8::String::new(scope, fs::read_to_string("test.ts").expect("Some error"
 }
 
 fn install(version: &str) -> Result<(), Box<dyn Error>> {
-    checkVersion(version)?;
+    check_version(version)?;
 
     match fs::create_dir_all(CACHE) {
         Ok(_) => (),
