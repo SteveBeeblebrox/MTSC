@@ -12,24 +12,50 @@ use std::convert::TryFrom;
 
 fn main() {
     let matches = App::new("STC")
-        .version("1.0.0")
+        .version(clap::crate_version!())
         .author("S B. <@gmail.com>")
         .about("A standalone TypeScript compiler")
+
         .arg(Arg::with_name("install")
             .short("i")
             .long("install")
-            .value_name("TARGET")
+            .value_name("TS-VERSION")
             .help("Install a compiler version")
-            .takes_value(true))
+            //.default_value("latest")
+            .takes_value(true)
+        )
+        
         .arg(Arg::with_name("compiler")
             .short("c")
             .long("compiler")
             .value_name("COMPILER")
             .help("Sets the compiler version to use (default latest)")
-            .takes_value(true))
+            //.default_value("latest")
+            .takes_value(true)
+        )
+
+        .arg(Arg::with_name("target")
+            .short("t")
+            .long("target")
+            .value_name("ES-VERSION")
+            .help("The JavaScript language and library version for compiled code")
+            .default_value("esnext")
+            .takes_value(true)
+        )
+
+        .arg(Arg::with_name("module")
+            .short("m")
+            .long("module")
+            .value_name("MODULE-VERSION")
+            .help("The module type for compiled code")
+            .default_value("esnext")
+            .takes_value(true)
+        )
+
         .arg(Arg::with_name("INPUT")
             .help("Sets the input file to use")
-            .index(1))
+            .index(1)
+        )
         .get_matches();
 
     match matches.value_of("install") {
