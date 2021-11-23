@@ -15,6 +15,6 @@ fn main() {
     let typescript_services = Download::new(format!("https://unpkg.com/typescript@{}/lib/typescriptServices.js", version.to_string_lossy()).as_str());
     downloader.download(&[typescript_services]).expect(format!("Failed to download TypeScript ({})", version.to_string_lossy()).as_str());
 
-    println!("cargo:rerun-if-changed=Cargo.toml");
+    println!("cargo:rerun-if-env-changed=CARGO_PKG_VERSION");
     println!("cargo:rerun-if-changed=build.rs");
 }
