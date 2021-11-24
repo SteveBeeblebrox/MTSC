@@ -12,7 +12,7 @@ fn main() {
         .version(clap::crate_version!())
         .author("S B. <@gmail.com>")
         .about("A standalone TypeScript compiler")
-/*
+
         .arg(Arg::with_name("target")
             .short("t")
             .long("target")
@@ -29,7 +29,7 @@ fn main() {
             .help("Sets the module type for compiled code")
             .default_value("esnext")
             .takes_value(true)
-        )*/
+        )
 
         .arg(Arg::with_name("output")
             .short("o")
@@ -50,7 +50,10 @@ fn main() {
         let input_text = fs::read_to_string(input_file).expect("TODO");
 
         // TODO: Make error message
-        let result = compile_typescript(input_text.as_str()).expect("Compile Error");
+        let result = compile_typescript(input_text.as_str(), CompileOptions {
+            target: String::from(matches.value_of("target").unwrap()),
+            module: String::from(matches.value_of("module").unwrap())
+        }).expect("Compile Error");
 
         match matches.value_of("output") {
             Some("") => print!("{}", result.as_str()),
@@ -71,11 +74,16 @@ fn main() {
         }
 }
 
-fn compile_typescript(text: &str) -> Option<String> {
+struct CompileOptions {
+    target: String,
+    module: String
+}
+
+fn compile_typescript(text: &str, options: CompileOptions) -> Option<String> {
     let platform = v8::new_default_platform(0, false).make_shared();
     v8::V8::initialize_platform(platform);
     v8::V8::initialize();
-
+    
     let isolate = &mut v8::Isolate::new(Default::default());
 
     let scope = &mut v8::HandleScope::new(isolate);
@@ -96,6 +104,17 @@ fn compile_typescript(text: &str) -> Option<String> {
 
     let text = v8::String::new(scope, text)?.into();
 
-    return Some(transpile_function.call(scope, ts_obj, &[text])?.to_string(scope)?
+    let args = v8::Object::new(scope);
+
+    let target_prop_name = v8::String::new(scope, "target")?.into();
+    let target_prop_value = v8::String::new(scope, options.target.as_str())?.into();
+    args.set(scope, target_prop_name, target_prop_value);
+
+    let module_prop_name = v8::String::new(scope, "module")?.into();
+    let module_prop_value = v8::String::new(scope, options.module.as_str())?.into();
+    args.set(scope, module_prop_name, module_prop_value);
+
+
+    return Some(transpile_function.call(scope, ts_obj, &[text, args.into()])?.to_string(scope)?
         .to_rust_string_lossy(scope))
 }
