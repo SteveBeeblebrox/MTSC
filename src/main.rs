@@ -13,7 +13,7 @@ static TYPESCRIPT_SERVICES: &str = include_str!(r"typescriptServices.js");
 fn main() {
     let matches = App::new("MTSC")
         .version(clap::crate_version!())
-        .author("S B. <@gmail.com>")
+        .author(clap::crate_authors!())
         .about("A standalone TypeScript compiler")
 
         .arg(Arg::with_name("target")
