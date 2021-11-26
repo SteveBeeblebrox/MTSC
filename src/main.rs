@@ -43,7 +43,7 @@ fn main() {
         )
 
         .arg(Arg::with_name("INPUT")
-            .help("Sets the input file to compile")
+            .help("Sets the input file to compile (Leave blank to read from stdin)")
             .index(1)
         )
         .get_matches();
