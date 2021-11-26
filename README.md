@@ -1,4 +1,4 @@
 # MTSC
-A simple TypeScript compiler without external dependencies.
+A standalone TypeScript compiler.
 
 Run with `--help` for more details.
