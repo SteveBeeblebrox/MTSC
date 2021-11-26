@@ -6,6 +6,9 @@ use std::path::PathBuf;
 use std::fs::File;
 use std::fs;
 
+use std::io::Read;
+use std::io;
+
 static TYPESCRIPT_SERVICES: &str = include_str!(r"typescriptServices.js");
 fn main() {
     let matches = App::new("MTSC")
@@ -45,31 +48,39 @@ fn main() {
         )
         .get_matches();
 
-        let input_file = matches.value_of("INPUT").expect("Input required");
-        // TODO: Make error message
-        let input_text = fs::read_to_string(input_file).expect("TODO");
+        let (input_file, input_text) = match matches.value_of("INPUT") {
+            Some(value) => (Some(String::from(value)), fs::read_to_string(value).expect("Error reading target file")),
+            None => {
+                let stdin = io::stdin();
+                let mut stdin = stdin.lock();
+                let mut line = String::new();
 
-        // TODO: Make error message
+                stdin.read_to_string(&mut line).expect("Error reading stdin");
+                (None, String::from(line))
+            }
+        };
+
         let result = compile_typescript(input_text.as_str(), CompileOptions {
             target: String::from(matches.value_of("target").unwrap()),
             module: String::from(matches.value_of("module").unwrap())
-        }).expect("Compile Error");
+        }).expect("Error compiling TypeScript");
 
         match matches.value_of("output") {
             Some("") => print!("{}", result.as_str()),
             Some(path) => {
-                // TODO: Make error message
-                let mut file = File::create(path).expect("Error");
-                // TODO: Make error message
-                file.write_all(result.as_bytes()).expect("Error");
+                let mut file = File::create(path).expect("Error creating output file");
+                file.write_all(result.as_bytes()).expect("Error writing to output file");
             },
             None => {
-                let mut path = PathBuf::from(input_file);
-                path.set_extension("js");
-                // TODO: Make error message
-                let mut file = File::create(path).expect("Error");
-                // TODO: Make error message
-                file.write_all(result.as_bytes()).expect("Error");
+                match input_file {
+                    Some(input_file) => {
+                        let mut path = PathBuf::from(input_file);
+                        path.set_extension("js");
+                        let mut file = File::create(path).expect("Error creating output file");
+                        file.write_all(result.as_bytes()).expect("Error writing to output file");
+                    },
+                    None => print!("{}", result.as_str())
+                }
             }
         }
 }
