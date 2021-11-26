@@ -10,4 +10,6 @@ v8 = "0.34.0"
 clap = "2.33.3"
 
 [build-dependencies]
-downloader = "0.2.6"
+#downloader = "0.2.6"
+reqwest = "0.11.6"
+tokio = { version = "1.14.0", features = ["full"] }
