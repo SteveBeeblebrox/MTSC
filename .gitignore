@@ -1,4 +1,2 @@
 /target
-/.mtsc
-test.js
-/src/typescriptServices.js
+*.js

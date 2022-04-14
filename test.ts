@@ -1,5 +1,5 @@
-type MyNumber = number
-const x: MyNumber = 1;
+type NumberLike = number | string
+const x: NumberLike = '7';
 function  doStuff(...args: string[]): boolean {
-    return true;
+    return +x === 7;
 }
