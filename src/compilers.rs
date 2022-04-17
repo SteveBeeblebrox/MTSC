@@ -139,7 +139,16 @@ impl TokenSink for &mut Document {
                     
                     for attr in tag.attrs.iter() {
                         if attr.value.len() > 0 {
-                            attrs.push_str(&format!(" {}=\"{}\"", attr.name.local, attr.value));
+                            let value = attr.value.to_string();
+                            
+                            if value.contains("\"") && !value.contains("'") {
+                                attrs.push_str(&format!(" {}='{}'", attr.name.local, value));
+                            } else if value.contains("'") && !value.contains("\"") {
+                                attrs.push_str(&format!(r#" {}="{}""#, attr.name.local, value));
+                            }
+                            else {
+                                attrs.push_str(&format!(r#" {}="{}""#, attr.name.local, attr.value.as_ref().replace("\"", "&quot;")));
+                            }
                         } else {
                             attrs.push_str(&format!(" {}", attr.name.local));
                         }
@@ -183,10 +192,37 @@ impl TokenSink for &mut Document {
                                     options.module = "none".to_string();
                                 }
 
-                                self.write_text("\n");
                                 let script_buffer = self.script_buffer.clone();
-                                self.write_text(compile_typescript(&script_buffer, options).expect("Error compiling TypeScript within HTML"));
-                                self.write_text(script_buffer.lines().last().unwrap_or(""));
+
+                                let mut lines: Vec<&str> = script_buffer.lines().collect::<Vec<&str>>();
+                                lines.retain(|line| !line.trim().is_empty());
+                                let mut indentation = String::new();
+
+                                for i in 0..lines[0].len() {
+                                    if let Some(char) = lines[0].chars().nth(i) {
+                                        if char.is_whitespace() && lines.iter().all(move |line| line.chars().nth(i) == Some(char)) {
+                                            indentation.push(char);
+                                        } else {
+                                            break;
+                                        }
+                                    } else {
+                                        break;
+                                    }
+                                }
+
+                                self.write_text(format!("\n{}",
+                                    compile_typescript(
+                                            &script_buffer.lines().map(|line| line.trim_start_matches(indentation.as_str()).to_string()).collect::<Vec<String>>().join("\n"),
+                                            options
+                                        ).expect("Error compiling TypeScript within HTML")
+                                    .lines().map(|line| format!("{}{}", indentation, line)).collect::<Vec<String>>().join("\n")
+                                ));
+                                
+                                let last = script_buffer.lines().last().unwrap_or("");
+                                if last.chars().all(|char| char.is_whitespace()) {
+                                    self.write_text(format!("\n{}", last));
+                                }
+
                                 self.script_buffer = String::new();
                             }
                             self.write_text(get_tag_str(tag));
