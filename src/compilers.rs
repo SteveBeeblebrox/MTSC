@@ -92,7 +92,11 @@ struct Document {
 
 impl Document {
     fn write_text<S: AsRef<str>>(&mut self, html: S) {
-        self.inner_html.push_str(html.as_ref());
+        if self.typescript_mode == TargetType::None {
+            self.inner_html.push_str(html.as_ref());
+        } else {
+            self.script_buffer.push_str(html.as_ref());
+        }
     }
     fn new(options: CompileOptions) -> Self {
         Document {
@@ -109,11 +113,7 @@ impl TokenSink for &mut Document {
     fn process_token(&mut self, token: Token, _line_number: u64) -> TokenSinkResult<()> {
         match token {
             CharacterTokens(str_tendril) => {
-                if self.typescript_mode == TargetType::None {
-                    self.write_text(str_tendril);
-                } else {
-                    self.script_buffer.push_str(str_tendril.as_ref());
-                }
+                self.write_text(str_tendril);
             },
             DoctypeToken(doctype) => {
                 self.write_text("<!DOCTYPE ");
@@ -129,6 +129,22 @@ impl TokenSink for &mut Document {
                 self.write_text(">");
             },
             TagToken(mut tag) => {
+                let mut attrs = String::new();
+                    
+                for attr in tag.attrs.iter() {
+                    if attr.value.len() > 0 {
+                        attrs.push_str(&format!(" {}=\"{}\"", attr.name.local, attr.value));
+                    } else {
+                        attrs.push_str(&format!(" {}", attr.name.local));
+                    }
+                }
+                
+                let tag_str = match tag.kind {
+                    _ if tag.self_closing => format!("<{}{}/>", tag.name, attrs),
+                    StartTag => format!("<{}{}>", tag.name, attrs),
+                    EndTag => format!("</{}>", tag.name),
+                };
+
                 if tag.name.to_lowercase() == "script" {
                     match tag.kind {
                         StartTag => {
@@ -136,18 +152,24 @@ impl TokenSink for &mut Document {
                                 match attr.value.as_ref() {
                                     "text/typescript" | "application/typescript" => {
                                         tag.attrs.retain(|attr| attr.name.local.as_ref() != "type");
+                                        self.write_text(tag_str.clone());
                                         self.typescript_mode = TargetType::Classic
                                     },
                                     "module/typescript" | "tsmodule" => {
                                         attr.value = StrTendril::from("module");
+                                        self.write_text(tag_str.clone());
                                         self.typescript_mode = TargetType::Module
                                     },
-                                    _ => ()
+                                    _ => self.write_text(tag_str.clone())
                                 }
+                            } else {
+                                self.write_text(tag_str.clone());
                             }
                         },
                         EndTag => {
                             if self.typescript_mode != TargetType::None {
+                                self.typescript_mode = TargetType::None;
+                                
                                 let mut options = self.options.clone();
                                 
                                 if self.typescript_mode != TargetType::Module {
@@ -159,28 +181,14 @@ impl TokenSink for &mut Document {
                                 self.write_text(compile_typescript(&script_buffer, options).expect("Error compiling TypeScript within HTML"));
                                 self.write_text(script_buffer.lines().last().unwrap_or(""));
                                 self.script_buffer = String::new();
-                                self.typescript_mode = TargetType::None;
                             }
+                            self.write_text(tag_str.clone());
                         }
                     }
                 }
-                
-                
-                let mut attrs = String::new();
-                
-                for attr in tag.attrs.iter() {
-                    if attr.value.len() > 0 {
-                        attrs.push_str(&format!(" {}=\"{}\"", attr.name.local, attr.value));
-                    } else {
-                        attrs.push_str(&format!(" {}", attr.name.local));
-                    }
+                else {
+                    self.write_text(tag_str);
                 }
-                
-                self.write_text(match tag.kind {
-                    _ if tag.self_closing => format!("<{}{}/>", tag.name, attrs),
-                    StartTag => format!("<{}{}>", tag.name, attrs),
-                    EndTag => format!("</{}>", tag.name),
-                });
             },
             CommentToken(comment) => {
                 self.write_text(format!("<!--{}-->", comment));
