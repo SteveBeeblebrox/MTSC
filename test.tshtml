@@ -12,6 +12,13 @@
         </script>
         <script type="text/typescript">
             let x: number = 1;
+            for(let i = 0; i <= 10; i++) {
+                console.log(i);
+                let my_str = `
+                    Hello World
+                `;
+            }
+            let bool: boolean = true;
         </script>
     </body>
 </html>

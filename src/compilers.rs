@@ -1,18 +1,12 @@
-#[path = "rcdom.rs"]
-mod rcdom;
-use rcdom::{RcDom, SerializableHandle,Node,NodeData};
 
-use html5ever::tendril::TendrilSink;
-use html5ever::driver::ParseOpts;
-use html5ever::LocalName;
-
-use tendril::StrTendril;
-use if_chain::if_chain;
+use html5ever::tendril::StrTendril;
+use html5ever::tokenizer::{
+    CharacterTokens, EndTag, NullCharacterToken, StartTag, TagToken, DoctypeToken, CommentToken, EOFToken,
+    ParseError, Token, TokenSink, TokenSinkResult, Tokenizer, TokenizerOpts, BufferQueue
+};
 
 use std::convert::TryFrom;
 use std::default::Default;
-use std::cell::RefCell;
-use std::rc::Rc;
 
 use v8;
 
@@ -84,64 +78,134 @@ pub fn compile_typescript(text: &str, options: CompileOptions) -> Option<String>
 }
 
 
-#[allow(dead_code)]
-pub fn compile_html(text: &str, options: CompileOptions) -> Option<String> {
-    let dom = html5ever::parse_document(RcDom::default(), ParseOpts::default())
-        .from_utf8()
-        .read_from(&mut text.as_bytes())
-        .unwrap();
+#[derive(PartialEq)]
+enum TargetType {
+    None, Classic, Module
+}
 
-    let mut queue: Vec<std::rc::Rc<rcdom::Node>> = vec![dom.document.clone()];
-    
-     while let Some(node) = queue.pop() {
-            if_chain! {
-                if let NodeData::Element { ref name, ref attrs, .. } = node.data;
-                if name.local == LocalName::from("script");
-                then {
-                    let mut attrs = attrs.borrow_mut();
-                    if let Some(attr) = attrs.iter_mut().find(|attr| attr.name.local == LocalName::from("type")) {
+struct Document {
+    options: CompileOptions,
+    typescript_mode: TargetType,
+    inner_html: String,
+    script_buffer: String
+}
 
-                        fn get_text_content(node: &Rc<Node>) -> String {
-                            let mut text_content = String::from("");
-                            for child in node.children.borrow().iter() {
-                                if let NodeData::Text { ref contents } = child.data {
-                                    text_content.push_str(contents.borrow().as_ref());
+impl Document {
+    fn write_text<S: AsRef<str>>(&mut self, html: S) {
+        self.inner_html.push_str(html.as_ref());
+    }
+    fn new(options: CompileOptions) -> Self {
+        Document {
+            options,
+            typescript_mode: TargetType::None,
+            inner_html: String::new(),
+            script_buffer: String::new()
+        }
+    }
+}
+
+impl TokenSink for &mut Document {
+    type Handle = ();
+    fn process_token(&mut self, token: Token, _line_number: u64) -> TokenSinkResult<()> {
+        match token {
+            CharacterTokens(str_tendril) => {
+                if self.typescript_mode == TargetType::None {
+                    self.write_text(str_tendril);
+                } else {
+                    self.script_buffer.push_str(str_tendril.as_ref());
+                }
+            },
+            DoctypeToken(doctype) => {
+                self.write_text("<!DOCTYPE ");
+                if let Some(name) = doctype.name {
+                    self.write_text(name.as_ref());
+                }
+                if let Some(public_id) = doctype.public_id {
+                    self.write_text(format!(" PUBLIC \"{}\"", public_id));
+                }
+                if let Some(system_id) = doctype.system_id {
+                    self.write_text(format!(" \"{}\"", system_id));
+                }
+                self.write_text(">");
+            },
+            TagToken(mut tag) => {
+                if tag.name.to_lowercase() == "script" {
+                    match tag.kind {
+                        StartTag => {
+                            if let Some(attr) = tag.attrs.iter_mut().find(|attr| attr.name.local.as_ref() == "type") {
+                                match attr.value.as_ref() {
+                                    "text/typescript" | "application/typescript" => {
+                                        tag.attrs.retain(|attr| attr.name.local.as_ref() != "type");
+                                        self.typescript_mode = TargetType::Classic
+                                    },
+                                    "module/typescript" | "tsmodule" => {
+                                        attr.value = StrTendril::from("module");
+                                        self.typescript_mode = TargetType::Module
+                                    },
+                                    _ => ()
                                 }
                             }
-                            return text_content;
-                        }
+                        },
+                        EndTag => {
+                            if self.typescript_mode != TargetType::None {
+                                let mut options = self.options.clone();
+                                
+                                if self.typescript_mode != TargetType::Module {
+                                    options.module = "none".to_string();
+                                }
 
-                        fn set_text_content(node: &Rc<Node>, text_content: String) {
-                            node.children.borrow_mut().clear();
-                            node.children.borrow_mut().push(Node::new(NodeData::Text { contents:  RefCell::new(StrTendril::from(text_content)) }));
-                        }
-
-                        match attr.value.as_ref() {
-                            value @ ("text/typescript" | "application/typescript") => {
-
-                                let value = StrTendril::from(value);
-                                attrs.retain(|it| it.name.local != LocalName::from("type") && it.value == value);
-
-                                let mut options = options.clone();
-                                options.module = "none".to_string();
-
-                                set_text_content(&node, compile_typescript(get_text_content(&node).as_ref(), options)?);
-                            },
-                            "tsmodule" | "module/typescript" => {
-                                attr.value = StrTendril::from("module");
-                                set_text_content(&node, compile_typescript(get_text_content(&node).as_ref(), options.clone())?);
-                            },
-                            _ => {},
+                                self.write_text("\n");
+                                let script_buffer = self.script_buffer.clone();
+                                self.write_text(compile_typescript(&script_buffer, options).expect("Error compiling TypeScript within HTML"));
+                                self.write_text(script_buffer.lines().last().unwrap_or(""));
+                                self.script_buffer = String::new();
+                                self.typescript_mode = TargetType::None;
+                            }
                         }
                     }
-                } else {
-                     queue.extend(node.children.borrow().clone());
                 }
-            }
-     }
+                
+                
+                let mut attrs = String::new();
+                
+                for attr in tag.attrs.iter() {
+                    if attr.value.len() > 0 {
+                        attrs.push_str(&format!(" {}=\"{}\"", attr.name.local, attr.value));
+                    } else {
+                        attrs.push_str(&format!(" {}", attr.name.local));
+                    }
+                }
+                
+                self.write_text(match tag.kind {
+                    _ if tag.self_closing => format!("<{}{}/>", tag.name, attrs),
+                    StartTag => format!("<{}{}>", tag.name, attrs),
+                    EndTag => format!("</{}>", tag.name),
+                });
+            },
+            CommentToken(comment) => {
+                self.write_text(format!("<!--{}-->", comment));
+            },
+            NullCharacterToken => self.write_text("\0"),
+            ParseError(_error) => (),
+            EOFToken => ()
+        }
+        TokenSinkResult::Continue
+    }
+}
 
-    let mut buffer = std::io::BufWriter::new(vec![]);     
-    html5ever::serialize(&mut buffer, &SerializableHandle::from(dom.document.clone()), Default::default()).ok()?;
+#[allow(dead_code)]
+pub fn compile_html(text: &str, options: CompileOptions) -> Option<String> {
+    let mut document = Document::new(options);
+    
+    let mut input = BufferQueue::new();
+    input.push_back(StrTendril::from(text));
 
-    return String::from_utf8(buffer.into_parts().1.ok()?).ok();
+    let mut tokenizer = Tokenizer::new(&mut document, TokenizerOpts {
+        ..Default::default()
+    });
+
+    let _ = tokenizer.feed(&mut input);
+    tokenizer.end();
+
+    return Some(document.inner_html);
 }
