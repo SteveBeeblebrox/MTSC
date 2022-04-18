@@ -1,4 +1,3 @@
-
 use html5ever::tendril::StrTendril;
 use html5ever::tokenizer::{
     CharacterTokens, EndTag, NullCharacterToken, StartTag, TagToken, DoctypeToken, CommentToken, EOFToken,
