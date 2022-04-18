@@ -197,15 +197,17 @@ impl TokenSink for &mut Document {
                                 lines.retain(|line| !line.trim().is_empty());
                                 let mut indentation = String::new();
 
-                                for i in 0..lines[0].len() {
-                                    if let Some(char) = lines[0].chars().nth(i) {
-                                        if char.is_whitespace() && lines.iter().all(move |line| line.chars().nth(i) == Some(char)) {
-                                            indentation.push(char);
+                                if lines.len() > 0 {
+                                    for i in 0..lines[0].len() {
+                                        if let Some(char) = lines[0].chars().nth(i) {
+                                            if char.is_whitespace() && lines.iter().all(move |line| line.chars().nth(i) == Some(char)) {
+                                                indentation.push(char);
+                                            } else {
+                                                break;
+                                            }
                                         } else {
                                             break;
                                         }
-                                    } else {
-                                        break;
                                     }
                                 }
 
