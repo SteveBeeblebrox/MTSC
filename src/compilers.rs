@@ -114,6 +114,9 @@ impl Document {
 
 impl TokenSink for &mut Document {
     type Handle = ();
+    fn adjusted_current_node_present_but_not_in_html_namespace(&self) -> bool {
+        true
+    }
     fn process_token(&mut self, token: Token, _line_number: u64) -> TokenSinkResult<()> {
         match token {
             CharacterTokens(str_tendril) => {
@@ -180,6 +183,7 @@ impl TokenSink for &mut Document {
                             } else {
                                 self.write_text(get_tag_str(tag));
                             }
+                            return TokenSinkResult::RawData(html5ever::tokenizer::states::RawKind::ScriptData);
                         },
                         EndTag => {
                             if self.typescript_mode != TargetType::None {
@@ -192,7 +196,7 @@ impl TokenSink for &mut Document {
                                 }
 
                                 let script_buffer = self.script_buffer.clone();
-
+                                
                                 let mut lines: Vec<&str> = script_buffer.lines().collect::<Vec<&str>>();
                                 lines.retain(|line| !line.trim().is_empty());
                                 let mut indentation = String::new();
@@ -227,6 +231,7 @@ impl TokenSink for &mut Document {
                                 self.script_buffer = String::new();
                             }
                             self.write_text(get_tag_str(tag));
+                            return TokenSinkResult::Continue
                         }
                     }
                 }
