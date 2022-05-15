@@ -217,7 +217,7 @@ impl TokenSink for &mut Document {
 
                                 self.write_text(format!("\n{}",
                                     compile_typescript(
-                                            &script_buffer.lines().map(|line| line.trim_start_matches(indentation.as_str()).to_string()).collect::<Vec<String>>().join("\n"),
+                                            &script_buffer.lines().map(|line| line.strip_prefix(indentation.as_str()).unwrap_or(line).to_string()).collect::<Vec<String>>().join("\n"),
                                             options
                                         ).expect("Error compiling TypeScript within HTML")
                                     .lines().map(|line| format!("{}{}", indentation, line)).collect::<Vec<String>>().join("\n")
