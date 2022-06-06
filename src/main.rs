@@ -1,5 +1,5 @@
 mod compilers;
-use compilers::{compile_typescript, compile_html, CompileOptions};
+use compilers::{compile_typescript, compile_html, CompileOptions, minify_javascript, MinifyOptions};
 
 use clap::{Arg, App};
 
@@ -61,10 +61,16 @@ fn main() {
             .short("o")
             .long("out")
             .value_name("OUTPUT")
-            .help("Sets the output file to write transpiled code to instead of using the input file's name with the extension changed to .js or .html in the case of HTML files (When set but blank, output is written to stdout; if set to a directory and an input file is provided, the output file will be written to the given directory with the extension changed to .js/.html)")
+            .help("Sets the output file to write transpiled code to instead of using the input file's name with the extension changed to .js or .html in the case of HTML files (When set to '-' or set but blank, output is written to stdout; if set to a directory and an input file is provided, the output file will be written to the given directory with the extension changed to .js/.html)")
             .default_value("")
             .hide_default_value(true)
             .takes_value(true)
+        )
+
+        .arg(Arg::with_name("minify")
+            .short("M")
+            .long("minify")
+            .help("Enables minification using Terser (both compression and mangling) of output code; except for HTML files, '.min' is appended to the output file extension")
         )
 
         .arg(Arg::with_name("html")
@@ -80,7 +86,7 @@ fn main() {
         )
 
         .arg(Arg::with_name("INPUT")
-            .help("Sets the input file to compile (Leave blank to read from stdin)")
+            .help("Sets the input file to compile (Leave blank or set to '-' to read from stdin)")
             .index(1)
         )
         .get_matches();
@@ -100,15 +106,15 @@ fn main() {
 
         // Determine input file (or stdin)
         let (input_file, input_text, input_type) = match matches.value_of("INPUT") {
-            Some(value) => (Some(String::from(value)), fs::read_to_string(value).expect("Error reading target file"), Path::new(value).extension().expect("Error getting file extension").to_str().expect("Error getting file extension").to_string()),
-            None => {
+            Some("-") | None => {
                 let stdin = io::stdin();
                 let mut stdin = stdin.lock();
                 let mut line = String::new();
 
                 stdin.read_to_string(&mut line).expect("Error reading stdin");
                 (None, String::from(line), String::from(""))
-            }
+            },
+            Some(value) => (Some(String::from(value)), fs::read_to_string(value).expect("Error reading target file"), Path::new(value).extension().expect("Error getting file extension").to_str().expect("Error getting file extension").to_string())
         };
 
         // Determine jsx configuration
@@ -119,6 +125,8 @@ fn main() {
         };
 
         let html = matches.occurrences_of("html") > 0;
+
+        let minify = matches.occurrences_of("minify") > 0;
 
         let options = CompileOptions {
             target: String::from(matches.value_of("target").unwrap()),
@@ -141,18 +149,37 @@ fn main() {
         };
 
         let result = if html {
-            compile_html(input_text.as_str(), options).expect("Error compiling HTML")
+            compile_html(input_text.as_str(), options.clone()).expect("Error compiling HTML")
         } else {
-            compile_typescript(input_text.as_str(), options).expect("Error compiling TypeScript")
+            compile_typescript(input_text.as_str(), options.clone()).expect("Error compiling TypeScript")
+        };
+
+        let result = if minify {
+            minify_javascript(result.as_str(), MinifyOptions::from(options.clone())).expect("Error minifying JavaScript")
+        } else {
+            result
+        };
+
+        let output_type = match input_type.as_str() {
+            _ if html => "html",
+            "ts" => "js",
+            "tsx" => "jsx",
+            "mts" => "mjs",
+            _ => "js"
+        };
+        let output_type = if minify && !html {
+            format!("min.{}", output_type)
+        } else {
+            String::from(output_type)
         };
 
         match matches.value_of("output") {
-            Some("") if matches.occurrences_of("output") > 0 => print!("{}", result.as_str()),
+            Some("-") | Some("") if matches.occurrences_of("output") > 0 => print!("{}", result.as_str()),
             None | Some("") => {
                 match input_file {
                     Some(input_file) => {
                         let mut path = PathBuf::from(input_file);
-                        path.set_extension(if html {"html"} else {"js"});
+                        path.set_extension(output_type.as_str());
                         let mut file = File::create(path).expect("Error creating output file");
                         file.write_all(result.as_bytes()).expect("Error writing to output file");
                     },
@@ -163,7 +190,7 @@ fn main() {
                 let path = if Path::new(path).exists() && fs::metadata(path).expect("Error reading file metadata").is_dir() && input_file.is_some() {
                     let mut path = PathBuf::from(path);
                     path.push(Path::new(&input_file.unwrap().to_string()).file_name().expect("Error getting file name").to_str().expect("Error getting file name"));
-                    path.set_extension(if html {"html"} else {"js"});
+                    path.set_extension(output_type.as_str());
                     path
                 } else {
                     PathBuf::from(path)

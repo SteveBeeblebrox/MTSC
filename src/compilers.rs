@@ -11,6 +11,7 @@ use std::sync::Once;
 use v8;
 
 static TYPESCRIPT_SERVICES: &str = include_str!(r"typescriptServices.js");
+static TERSER: &str = include_str!(r"terser.js");
 
 #[derive(Clone)]
 pub struct CompileOptions {
@@ -18,7 +19,22 @@ pub struct CompileOptions {
     pub module: String,
     pub use_jsx: bool,
     pub jsx_factory: Option<String>,
-    pub jsx_fragment: Option<String>
+    pub jsx_fragment: Option<String>,
+}
+
+#[derive(Clone)]
+pub struct MinifyOptions {
+    pub target: String,
+    pub module: String
+}
+
+impl From<CompileOptions> for MinifyOptions {
+    fn from(options: CompileOptions) -> Self {
+        MinifyOptions {
+            target: options.target,
+            module: options.module
+        }
+    }
 }
 
 static V8_INIT: Once = Once::new();
@@ -265,4 +281,62 @@ pub fn compile_html(text: &str, options: CompileOptions) -> Option<String> {
     tokenizer.end();
 
     return Some(document.inner_html);
+}
+
+#[allow(dead_code)]
+pub fn minify_javascript(text: &str, options: MinifyOptions) -> Option<String> {
+    V8_INIT.call_once(|| {
+        let platform = v8::new_default_platform(0, false).make_shared();
+        v8::V8::initialize_platform(platform);
+        v8::V8::initialize();
+    });
+    
+    let isolate = &mut v8::Isolate::new(Default::default());
+
+    let scope = &mut v8::HandleScope::new(isolate);
+    let context = v8::Context::new(scope);
+    let scope = &mut v8::ContextScope::new(scope, context);
+
+    let terser = v8::String::new(scope, TERSER)?;
+    
+    let script = v8::Script::compile(scope, terser, None)?;
+    script.run(scope)?;
+
+    let terser_obj_name = v8::String::new(scope, "Terser")?.into();
+    let terser_obj = context.global(scope).get(scope, terser_obj_name)?;
+    
+    let minify_func_name = v8::String::new(scope, "minify")?.into();
+    let minify_function = terser_obj.to_object(scope)?.get(scope, minify_func_name)?.to_object(scope)?;
+    let minify_function = v8::Local::<v8::Function>::try_from(minify_function).ok()?;
+
+    let text = v8::String::new(scope, text)?.into();
+
+    let args = v8::Object::new(scope);
+
+    /*let target_prop_name = v8::String::new(scope, "target")?.into();
+    let target_prop_value = v8::String::new(scope, options.target.as_str())?.into();
+    args.set(scope, target_prop_name, target_prop_value);
+
+    let module_prop_name = v8::String::new(scope, "module")?.into();
+    let module_prop_value = v8::String::new(scope, options.module.as_str())?.into();
+    args.set(scope, module_prop_name, module_prop_value);*/
+
+    let result = minify_function.call(scope, terser_obj, &[text, args.into()])?;
+
+    if result.is_promise() {
+        let promise = v8::Local::<v8::Promise>::try_from(result).ok()?;
+
+        while promise.state() == v8::PromiseState::Pending {
+            scope.perform_microtask_checkpoint();
+        }
+        if promise.state() == v8::PromiseState::Rejected {
+            panic!("Promise rejected");
+        } else {
+            let code_name = v8::String::new(scope, "code")?.into();
+            let resolved = promise.result(scope).to_object(scope)?.get(scope, code_name)?;
+            return Some(resolved.to_string(scope)?.to_rust_string_lossy(scope))
+        }
+    } else {
+        panic!("Value is not a promise");
+    }
 }
