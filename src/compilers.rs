@@ -313,13 +313,44 @@ pub fn minify_javascript(text: &str, options: MinifyOptions) -> Option<String> {
 
     let args = v8::Object::new(scope);
 
-    /*let target_prop_name = v8::String::new(scope, "target")?.into();
-    let target_prop_value = v8::String::new(scope, options.target.as_str())?.into();
-    args.set(scope, target_prop_name, target_prop_value);
+    // Compile Options
+    let compress_prop_name = v8::String::new(scope, "compress")?.into();
+    let compress_prop_value = v8::Object::new(scope);
+
+
+    let ecma_prop_name = v8::String::new(scope, "ecma")?.into();
+    let ecma_prop_value = v8::String::new(scope, options.target.to_lowercase().strip_prefix("es")?)?.into();
+    compress_prop_value.set(scope, ecma_prop_name, ecma_prop_value);
 
     let module_prop_name = v8::String::new(scope, "module")?.into();
-    let module_prop_value = v8::String::new(scope, options.module.as_str())?.into();
-    args.set(scope, module_prop_name, module_prop_value);*/
+    let module_prop_value = v8::Boolean::new(scope, options.module != "none").into();
+    compress_prop_value.set(scope, module_prop_name, module_prop_value);
+
+    args.set(scope, compress_prop_name, compress_prop_value.into());
+    
+    // Mangle Options
+    let mangle_prop_name = v8::String::new(scope, "mangle")?.into();
+    let mangle_prop_value = v8::Object::new(scope);
+
+    let module_prop_name = v8::String::new(scope, "module")?.into();
+    let module_prop_value = v8::Boolean::new(scope, options.module != "none").into();
+    mangle_prop_value.set(scope, module_prop_name, module_prop_value);
+
+    args.set(scope, mangle_prop_name, mangle_prop_value.into());
+
+    // Format Options
+    let format_prop_name = v8::String::new(scope, "format")?.into();
+    let format_prop_value = v8::Object::new(scope);
+
+    let ecma_prop_name = v8::String::new(scope, "ecma")?.into();
+    let ecma_prop_value = v8::String::new(scope, options.target.to_lowercase().strip_prefix("es")?)?.into();
+    format_prop_value.set(scope, ecma_prop_name, ecma_prop_value);
+
+    let comment_prop_name = v8::String::new(scope, "comments")?.into();
+    let comment_prop_value = v8::String::new(scope, "/^!/")?.into();
+    format_prop_value.set(scope, comment_prop_name, comment_prop_value);
+
+    args.set(scope, format_prop_name, format_prop_value.into());
 
     let result = minify_function.call(scope, terser_obj, &[text, args.into()])?;
 
