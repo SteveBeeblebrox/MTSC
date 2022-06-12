@@ -70,7 +70,7 @@ fn main() {
         .arg(Arg::with_name("minify")
             .short("M")
             .long("minify")
-            .help("Enables minification using Terser (both compression and mangling) of output code; except for HTML files, '.min' is appended to the output file extension")
+            .help("Enables minification using Terser (both compression and mangling) of output code; except for HTML files, '.min' is appended to the output file extension (Currently ignored if parsing HTML)")
         )
 
         .arg(Arg::with_name("html")
@@ -126,7 +126,7 @@ fn main() {
 
         let html = matches.occurrences_of("html") > 0;
 
-        let minify = matches.occurrences_of("minify") > 0;
+        let minify = matches.occurrences_of("minify") > 0 && !html;
 
         let options = CompileOptions {
             target: String::from(matches.value_of("target").unwrap()),
@@ -167,7 +167,7 @@ fn main() {
             "mts" => "mjs",
             _ => "js"
         };
-        let output_type = if minify && !html {
+        let output_type = if minify {
             format!("min.{}", output_type)
         } else {
             String::from(output_type)
