@@ -1,6 +1,7 @@
 mod compilers;
 use compilers::{compile_typescript, compile_html, CompileOptions, minify_javascript, MinifyOptions};
 
+use regex::{Regex, Captures};
 use clap::{Arg, App};
 
 use backtrace::Backtrace;
@@ -147,6 +148,11 @@ fn main() {
             jsx_factory,
             jsx_fragment
         };
+
+        let regex = Regex::new(r"//#\s*?include\s+?([^\r\n]+)").unwrap();
+        let input_text = regex.replace_all(&input_text, |captures: &Captures| {
+            fs::read_to_string(captures[1].to_string()).expect(format!("Error resolving transform `{}`", captures[0].to_string()).as_str())
+        }).to_string();
 
         let result = if html {
             compile_html(input_text.as_str(), options.clone()).expect("Error compiling HTML")

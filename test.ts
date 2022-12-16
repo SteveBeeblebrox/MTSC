@@ -17,3 +17,5 @@ let xx = {
         console.log(1+1)
     }
 }
+
+const bar = //#include test_include.ts
