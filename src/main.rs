@@ -1,7 +1,6 @@
 mod compilers;
-use compilers::{compile_typescript, compile_html, CompileOptions, minify_javascript, MinifyOptions};
+use compilers::{compile_typescript, compile_html, CompileOptions, minify_javascript, MinifyOptions, expand_includes};
 
-use regex::{Regex, Captures};
 use clap::{Arg, App};
 
 use backtrace::Backtrace;
@@ -58,6 +57,15 @@ fn main() {
             .takes_value(true)
         )
 
+        .arg(Arg::with_name("include-directory")
+            .short("i")
+            .long("include-directory")
+            .value_name("INCLUDE-DIRECTORY")
+            .help("Overrides the directory where include comments look for their files (When unset, the target's parent directory is used; when reading from stdin, includes are only expanded if this is set)")
+            .default_value("")
+            .takes_value(true)
+        )
+
         .arg(Arg::with_name("output")
             .short("o")
             .long("out")
@@ -71,7 +79,7 @@ fn main() {
         .arg(Arg::with_name("minify")
             .short("M")
             .long("minify")
-            .help("Enables minification using Terser (both compression and mangling) of output code; except for HTML files, '.min' is appended to the output file extension (Currently ignored if parsing HTML)")
+            .help("Enables minification using Terser (both compression and mangling) of output code; except for HTML files, '.min' is prepend to the output file extension (Currently ignored if parsing HTML)")
         )
 
         .arg(Arg::with_name("html")
@@ -149,10 +157,15 @@ fn main() {
             jsx_fragment
         };
 
-        let regex = Regex::new(r"//#\s*?include\s+?([^\r\n]+)").unwrap();
-        let input_text = regex.replace_all(&input_text, |captures: &Captures| {
-            fs::read_to_string(captures[1].to_string()).expect(format!("Error resolving transform `{}`", captures[0].to_string()).as_str())
-        }).to_string();
+
+        let input_text = match matches.value_of("include-directory") {
+            Some(include_directory) if include_directory != "" => expand_includes(input_text, PathBuf::from(include_directory)),
+            _ => if let Some(input_file) = input_file.clone() {
+                    expand_includes(input_text, PathBuf::from(input_file).parent().expect("Error getting target file's parent directory").to_path_buf())
+                } else {
+                    input_text
+                }
+        };
 
         let result = if html {
             compile_html(input_text.as_str(), options.clone()).expect("Error compiling HTML")

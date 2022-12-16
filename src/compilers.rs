@@ -4,9 +4,13 @@ use html5ever::tokenizer::{
     ParseError, Token, TokenSink, TokenSinkResult, Tokenizer, TokenizerOpts, BufferQueue, Tag
 };
 
+use regex::{Regex,Captures};
+
 use std::convert::TryFrom;
 use std::default::Default;
+use std::path::PathBuf;
 use std::sync::Once;
+use std::fs;
 
 use v8;
 
@@ -38,6 +42,22 @@ impl From<CompileOptions> for MinifyOptions {
 }
 
 static V8_INIT: Once = Once::new();
+
+#[allow(dead_code)]
+pub fn expand_includes(source_text: String, source_path: PathBuf) -> String {
+    let regex = Regex::new(r"//#\s*?include\s+?([^\r\n]+)").unwrap();
+    regex.replace_all(&source_text, |captures: &Captures| {
+        let msg = String::from(format!("Error resolving include `{}`",captures[1].to_string()).as_str());
+        
+        let mut path = source_path.to_path_buf();
+        path.push(captures[1].to_string());
+        
+        expand_includes(
+            fs::read_to_string(path.to_str().expect(&msg)).expect(&msg),
+            path.parent().expect(&msg).to_path_buf()
+        )
+    }).to_string()
+}
 
 #[allow(dead_code)]
 pub fn compile_typescript(text: &str, options: CompileOptions) -> Option<String> {

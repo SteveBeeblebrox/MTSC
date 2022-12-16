@@ -18,4 +18,4 @@ let xx = {
     }
 }
 
-const bar = //#include test_include.ts
+const bar = //#include test_files/test_include.ts
