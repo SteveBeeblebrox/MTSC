@@ -159,9 +159,9 @@ fn main() {
 
 
         let input_text = match matches.value_of("include-directory") {
-            Some(include_directory) if include_directory != "" => expand_includes(input_text, PathBuf::from(include_directory)),
+            Some(include_directory) if include_directory != "" => expand_includes(input_text, PathBuf::from(include_directory), &mut Vec::new()),
             _ => if let Some(input_file) = input_file.clone() {
-                    expand_includes(input_text, PathBuf::from(input_file).parent().expect("Error getting target file's parent directory").to_path_buf())
+                    expand_includes(input_text, PathBuf::from(input_file).parent().expect("Error getting target file's parent directory").to_path_buf(), &mut Vec::new())
                 } else {
                     input_text
                 }
