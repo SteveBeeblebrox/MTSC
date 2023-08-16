@@ -33,11 +33,11 @@ fn compile_wave() {
     cc::Build::new().cpp(true).warnings(false)
         .flag_if_supported("-std=c++11")
         .static_flag(true)
-        .flag("-lboost_atomic")
-        .flag("-lboost_chrono")
-        .flag("-lboost_filesystem")
-        .flag("-lboost_thread")
-        .flag("-lboost_wave")
-        .flag("-lpthread")
         .file("src/wave.cpp").compile("wave");
+
+    println!("cargo:rustc-link-lib=static=boost_atomic");
+    println!("cargo:rustc-link-lib=static=boost_chrono");
+    println!("cargo:rustc-link-lib=static=boost_filesystem");
+    println!("cargo:rustc-link-lib=static=boost_thread");
+    println!("cargo:rustc-link-lib=static=boost_wave");
 }

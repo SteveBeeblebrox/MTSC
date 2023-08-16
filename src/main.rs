@@ -18,7 +18,7 @@ use std::panic;
 mod wave;
 
 fn main() {
-    wave::preprocess_text(String::from(""), String::from(""), wave::Mode::COMMENT, vec![], |message_type: wave::MessageType, filename: String, line: i32, message: String| {});
+    wave::preprocess_text(String::from(""), String::from(""), wave::Mode::COMMENT, vec![]);
 
     let matches = App::new("MTSC")
         .version(clap::crate_version!())

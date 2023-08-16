@@ -1,13 +1,12 @@
 use std::os::raw::c_char;
 
-#[derive(Copy,Clone)]
+#[derive(Copy)]
 pub enum Mode {
     NONE = -1,
     STANDARD = 0,
     COMMENT = 1
 }
 
-#[derive(Copy,Clone)]
 pub enum MessageType {
     ERROR = 1,
     WARNING = 2,
