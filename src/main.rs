@@ -15,7 +15,11 @@ use std::io::Read;
 use std::io;
 use std::panic;
 
+mod wave;
+
 fn main() {
+    wave::preprocess_text(String::from(""), String::from(""), wave::Mode::COMMENT, vec![], |message_type: wave::MessageType, filename: String, line: i32, message: String| {});
+
     let matches = App::new("MTSC")
         .version(clap::crate_version!())
         .author(clap::crate_authors!())
@@ -66,6 +70,27 @@ fn main() {
             .takes_value(true)
         )
 
+        .arg(Arg::with_name("preprocessor")
+            .short("p")
+            .long("preprocessor")
+            .value_name("TYPE")
+            .help("Sets which preprocessor to use if any ('c' or 'standard' is just like C/C++'s preprocessor, 'comments' looks for directives within single-line comments, e.g. '//#define')")
+            .default_value("none")
+            .hide_default_value(true)
+            .takes_value(true)
+            .possible_values(&["none", "standard", "c", "comments"])
+        )
+
+        .arg(Arg::with_name("define")
+            .short("D")
+            .long("define")
+            .value_name("MACROS...")
+            .help("Define macros using the form 'MACRO(x)=definition' (Unused if preprocessor is 'none')")
+            .takes_value(true)
+            .max_values(1)
+            .multiple(true)
+        )
+
         .arg(Arg::with_name("output")
             .short("o")
             .long("out")
@@ -89,7 +114,7 @@ fn main() {
         )
 
         .arg(Arg::with_name("verbose")
-            .short("v")
+            .short("V")
             .long("verbose")
             .help("Prints verbose error messages")
         )

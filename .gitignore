@@ -1,3 +1,5 @@
-/target
 *.js
 *.html
+.vscode
+target
+boost
