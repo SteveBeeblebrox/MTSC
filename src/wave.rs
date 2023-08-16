@@ -4,7 +4,7 @@ use std::ffi::{CString,CStr};
 include!("ffi.rs");
 
 fn callback(_message_type: MessageType, _filename: String, _line: i32, message: String) {
-    //TODO: finish
+    //TODO: finish, boost license, cc license
     println!("Got message: {}", message);
 }
 
