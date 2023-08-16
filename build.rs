@@ -8,10 +8,10 @@ use cc;
 async fn main() {
     
     // TypeScript
-    download_file(&format!("https://unpkg.com/typescript@{}/lib/typescriptServices.js", env::var_os("CARGO_PKG_VERSION").unwrap().to_string_lossy()), &"src/typescriptServices.js").await;
+    download_file(&format!("https://unpkg.com/typescript@{}/lib/typescript.js", env::var_os("CARGO_PKG_VERSION").unwrap().to_string_lossy()), &"src/typescript.js").await;
 
     // Terser
-    download_file(&format!("https://unpkg.com/terser@{}/dist/bundle.min.js", "5.14.0"), &"src/terser.js").await;
+    download_file(&format!("https://unpkg.com/terser@{}/dist/bundle.min.js", "5.19.2"), &"src/terser.js").await;
 
     // Wave
     compile_wave();

@@ -4,7 +4,10 @@ use std::ffi::{CString,CStr};
 include!("ffi.rs");
 
 fn callback(_message_type: MessageType, _filename: String, _line: i32, message: String) {
-    //TODO: finish, boost license, cc license
+    //TODO: messages, boost license, cc license
+    // proper impl
+    // use #line 1 "file" to set file when reading from stdin, use - or something else unique as the original name
+    // FIXME: line numbers are wrong with comment preprocessor
     println!("Got message: {}", message);
 }
 

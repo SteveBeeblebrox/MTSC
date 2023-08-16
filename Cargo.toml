@@ -1,6 +1,6 @@
 [package]
 name = "mtsc"
-version = "4.9.4"
+version = "5.1.6"
 edition = "2018"
 authors = ["Trin Wasinger"] # <you@example.com>
 license = "MIT"

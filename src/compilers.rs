@@ -14,7 +14,7 @@ use std::fs;
 
 use v8;
 
-static TYPESCRIPT_SERVICES: &str = include_str!(r"typescriptServices.js");
+static TYPESCRIPT: &str = include_str!(r"typescript.js");
 static TERSER: &str = include_str!(r"terser.js");
 
 #[derive(Clone)]
@@ -84,7 +84,7 @@ pub fn compile_typescript(text: &str, options: CompileOptions) -> Option<String>
     let context = v8::Context::new(scope);
     let scope = &mut v8::ContextScope::new(scope, context);
 
-    let ts_compiler = v8::String::new(scope, TYPESCRIPT_SERVICES)?;
+    let ts_compiler = v8::String::new(scope, TYPESCRIPT)?;
     
     let script = v8::Script::compile(scope, ts_compiler, None)?;
     script.run(scope)?;
