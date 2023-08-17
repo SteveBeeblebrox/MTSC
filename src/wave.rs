@@ -9,8 +9,6 @@ fn callback(message_type: MessageType, filename: String, line: i32, message: Str
         MessageType::ERROR => eprintln!("\x1b[91mpreprocessor error\x1b[0m: {} ({}:{})", message, filename, line),
         MessageType::WARNING => eprintln!("\x1b[93mpreprocessor warning\x1b[0m: {} ({}:{})", message, filename, line)
     };
-    // use #line 1 "file" to set file when reading from stdin, use - or something else unique as the original name
-    // FIXME: line numbers are wrong with comment preprocessor}
 }
 
 unsafe extern "C" fn callback_ffi(message_type: i32, p_filename: cstr, line: i32, p_message: cstr) {
@@ -22,13 +20,14 @@ unsafe extern "C" fn callback_ffi(message_type: i32, p_filename: cstr, line: i32
     callback(message_type_enum, String::from(CStr::from_ptr(p_filename).to_str().unwrap()), line, String::from(CStr::from_ptr(p_message).to_str().unwrap()));
 }
 
+// FIXME: line numbers are wrong with comment preprocessor
 pub fn preprocess_text(text: String, filename: String, mode: Mode, macros: Vec<String>) -> Option<String> {
     unsafe {
         let c_text = CString::new(text).unwrap();
         let c_filename = CString::new(filename).unwrap();
         let c_macros = macros.iter().map(|m| CString::new(&(*m.clone())).unwrap()).collect::<Vec<CString>>();
 
-        let result = preprocess_text_ffi(
+        let p_result = preprocess_text_ffi(
             c_text.as_ptr(),
             c_filename.as_ptr(),
             mode as i32,
@@ -37,7 +36,10 @@ pub fn preprocess_text(text: String, filename: String, mode: Mode, macros: Vec<S
             callback_ffi
         );
 
-        free_preprocess_result_ffi(result);
-        Some(String::from(""))
+        let result: String = String::from(CStr::from_ptr(p_result).to_str().unwrap());
+
+        free_preprocess_result_ffi(p_result);
+
+        Some(result)
     }
 }
