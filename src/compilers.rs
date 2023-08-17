@@ -4,17 +4,13 @@ use html5ever::tokenizer::{
     ParseError, Token, TokenSink, TokenSinkResult, Tokenizer, TokenizerOpts, BufferQueue, Tag
 };
 
-use regex::{Regex,Captures};
-
 use std::convert::TryFrom;
 use std::default::Default;
-use std::path::PathBuf;
 use std::sync::Once;
-use std::fs;
 
 use v8;
 
-static TYPESCRIPT_SERVICES: &str = include_str!(r"typescriptServices.js");
+static TYPESCRIPT: &str = include_str!(r"typescript.js");
 static TERSER: &str = include_str!(r"terser.js");
 
 #[derive(Clone)]
@@ -44,33 +40,6 @@ impl From<CompileOptions> for MinifyOptions {
 static V8_INIT: Once = Once::new();
 
 #[allow(dead_code)]
-pub fn expand_includes(source_text: String, source_path: PathBuf, record: &mut Vec<String>) -> String {
-    let header_regex = Regex::new(r"^(?:\s*//(?:(?:[^\r\n]+))?(?:\r?\n)?)+").unwrap();
-    let sub_regex = Regex::new(r"//#\s*?include(!?)\s+?([^\r\n]+)").unwrap();
-    header_regex.replace(&source_text, |captures: &Captures| {
-        sub_regex.replace_all(&captures[0].to_string(), |captures: &Captures| {
-            let msg = String::from(format!("Error resolving include `{}`",captures[2].to_string()).as_str());
-            
-            let mut path = source_path.to_path_buf();
-            path.push(captures[2].to_string());
-            
-            let path_string = String::from(path.to_str().expect(&msg));
-            
-            if captures[1] == String::from("!") || !record.contains(&path_string) {
-                record.push(path_string.clone());
-                return expand_includes(
-                    fs::read_to_string(path.to_str().expect(&msg)).expect(&msg),
-                    path.parent().expect(&msg).to_path_buf(),
-                    record
-                )
-            } else {
-                return String::from("")
-            }
-        }).to_string()
-    }).to_string()
-}
-
-#[allow(dead_code)]
 pub fn compile_typescript(text: &str, options: CompileOptions) -> Option<String> {
     V8_INIT.call_once(|| {
         let platform = v8::new_default_platform(0, false).make_shared();
@@ -84,7 +53,7 @@ pub fn compile_typescript(text: &str, options: CompileOptions) -> Option<String>
     let context = v8::Context::new(scope);
     let scope = &mut v8::ContextScope::new(scope, context);
 
-    let ts_compiler = v8::String::new(scope, TYPESCRIPT_SERVICES)?;
+    let ts_compiler = v8::String::new(scope, TYPESCRIPT)?;
     
     let script = v8::Script::compile(scope, ts_compiler, None)?;
     script.run(scope)?;

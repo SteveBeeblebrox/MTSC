@@ -1,6 +1,6 @@
 The MIT License (MIT)
 
-Copyright (c) 2015-2016 Kevin B. Knapp (clap), 2018-2019 The Deno Authors (Rust v8), 2016 Sean McArthur (reqwest), 2021 Tokio Contributors (Tokio), 2014 The html5ever Project Developers (html5ever), 2016 Jorge Aparicio (panic-message), 2014 Alex Crichton (backtrace-rs), 2014 The Rust Project Developers (regex)
+Copyright (c) 2015-2016 Kevin B. Knapp (clap), 2018-2019 The Deno Authors (Rust v8), 2016 Sean McArthur (reqwest), 2021 Tokio Contributors (Tokio), 2014 The html5ever Project Developers (html5ever), 2016 Jorge Aparicio (panic-message), 2014 Alex Crichton (backtrace-rs, cc-rs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

@@ -1,5 +1,8 @@
 mod compilers;
-use compilers::{compile_typescript, compile_html, CompileOptions, minify_javascript, MinifyOptions, expand_includes};
+use compilers::{compile_typescript, compile_html, CompileOptions, minify_javascript, MinifyOptions};
+
+mod wave;
+use wave::{Mode, preprocess_text};
 
 use clap::{Arg, App};
 
@@ -18,6 +21,7 @@ use std::panic;
 fn main() {
     let matches = App::new("MTSC")
         .version(clap::crate_version!())
+        .version_short("v")
         .author(clap::crate_authors!())
         .about("A standalone TypeScript compiler with support for JSX, HTML script tags, and minification")
 
@@ -57,13 +61,32 @@ fn main() {
             .takes_value(true)
         )
 
-        .arg(Arg::with_name("include-directory")
+        .arg(Arg::with_name("input-name")
             .short("i")
-            .long("include-directory")
-            .value_name("INCLUDE-DIRECTORY")
-            .help("Overrides the directory where include comments look for their files (When unset, the target's parent directory is used; when reading from stdin, includes are only expanded if this is set)")
-            .default_value("")
+            .long("input-name")
+            .value_name("INPUT-NAME")
+            .help("Sets the file name for the input when reading from stdin (ignored otherwise)")
             .takes_value(true)
+        )
+
+        .arg(Arg::with_name("preprocessor")
+            .short("p")
+            .long("preprocessor")
+            .value_name("TYPE")
+            .help("Sets which preprocessor to use if any ('c' or 'standard' is just like C/C++'s preprocessor, 'comment' looks for directives within single-line comments, e.g. '//#define')")
+            .default_value("none")
+            .takes_value(true)
+            .possible_values(&["none", "standard", "c", "comment"])
+        )
+
+        .arg(Arg::with_name("define")
+            .short("D")
+            .long("define")
+            .value_name("MACROS...")
+            .help("Define macros using the form 'MACRO(x)=definition' (Unused if preprocessor is 'none')")
+            .takes_value(true)
+            .max_values(1)
+            .multiple(true)
         )
 
         .arg(Arg::with_name("output")
@@ -89,7 +112,7 @@ fn main() {
         )
 
         .arg(Arg::with_name("verbose")
-            .short("v")
+            .short("V")
             .long("verbose")
             .help("Prints verbose error messages")
         )
@@ -103,12 +126,12 @@ fn main() {
         let verbose = matches.occurrences_of("verbose") > 0;
         if cfg!(not(debug_assertions)) {
             panic::set_hook(Box::new(move |info| {
-                println!("error: {}", panic_message::panic_info_message(info));
+                println!("\x1b[93merror\x1b[0m: {}", panic_message::panic_info_message(info));
                 
                 if verbose {
                     println!("{:?}", Backtrace::new());
                 } else {
-                    println!("rerun with -v for verbose error messages");
+                    println!("rerun with -V for verbose error messages");
                 }
             }));
         }
@@ -121,7 +144,7 @@ fn main() {
                 let mut line = String::new();
 
                 stdin.read_to_string(&mut line).expect("Error reading stdin");
-                (None, String::from(line), String::from(""))
+                (match matches.value_of("input-name") { Some(s) => Some(String::from(s)), _=> None }, String::from(line), String::from(""))
             },
             Some(value) => (Some(String::from(value)), fs::read_to_string(value).expect("Error reading target file"), Path::new(value).extension().expect("Error getting file extension").to_str().expect("Error getting file extension").to_string())
         };
@@ -156,16 +179,20 @@ fn main() {
             jsx_factory,
             jsx_fragment
         };
-
-
-        let input_text = match matches.value_of("include-directory") {
-            Some(include_directory) if include_directory != "" => expand_includes(input_text, PathBuf::from(include_directory), &mut Vec::new()),
-            _ => if let Some(input_file) = input_file.clone() {
-                    expand_includes(input_text, PathBuf::from(input_file).parent().expect("Error getting target file's parent directory").to_path_buf(), &mut Vec::new())
-                } else {
-                    input_text
-                }
+        
+        let macros: Vec<String> = match matches.values_of("define") {
+            Some(values) => values.into_iter().map(|v| String::from(v)).collect::<Vec<String>>(),
+            _ => vec![]
         };
+        
+        let preprocessor_mode = match matches.value_of("preprocessor") {
+            Some("standard") | Some("c") => Mode::STANDARD,
+            Some("comment") => Mode::COMMENT,
+            None | Some("none") => Mode::NONE,
+            Some(other) => panic!("Unsupported preprocessor mode '{}'", other)
+        };
+
+        let input_text = preprocess_text(input_text, input_file.clone().unwrap_or(String::from("-")), preprocessor_mode, macros).expect("Error running preprocessor");
 
         let result = if html {
             compile_html(input_text.as_str(), options.clone()).expect("Error compiling HTML")
