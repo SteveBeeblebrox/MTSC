@@ -13,3 +13,12 @@ ASSERT(x == 1)
 
 //#include "strc.ts"
 strc(1 + 1)
+
+FOO
+
+// #warning Oh noo!
+//x#error ouch
+1+1
+
+//#define X(a) 1
+//X(1,2)

@@ -1,12 +1,16 @@
 use std::vec::Vec;
 use std::ffi::{CString,CStr};
+use std::process::exit;
 
 include!("ffi.rs");
 
 fn callback(message_type: MessageType, filename: String, line: i32, message: String) {
     match message_type {
         MessageType::EXCEPTION => panic!("{}", message),
-        MessageType::ERROR => eprintln!("\x1b[91mpreprocessor error\x1b[0m: {} ({}:{})", message, filename, line),
+        MessageType::ERROR => {
+            eprintln!("\x1b[91mpreprocessor error\x1b[0m: {} ({}:{})", message, filename, line);
+            exit(1);
+        },
         MessageType::WARNING => eprintln!("\x1b[93mpreprocessor warning\x1b[0m: {} ({}:{})", message, filename, line)
     };
 }
