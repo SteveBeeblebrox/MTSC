@@ -3,12 +3,14 @@ use std::ffi::{CString,CStr};
 
 include!("ffi.rs");
 
-fn callback(_message_type: MessageType, _filename: String, _line: i32, message: String) {
-    //TODO: messages, boost license, cc license
-    // proper impl
+fn callback(message_type: MessageType, filename: String, line: i32, message: String) {
+    match message_type {
+        MessageType::EXCEPTION => panic!("{}", message),
+        MessageType::ERROR => eprintln!("\x1b[91mpreprocessor error\x1b[0m: {} ({}:{})", message, filename, line),
+        MessageType::WARNING => eprintln!("\x1b[93mpreprocessor warning\x1b[0m: {} ({}:{})", message, filename, line)
+    };
     // use #line 1 "file" to set file when reading from stdin, use - or something else unique as the original name
-    // FIXME: line numbers are wrong with comment preprocessor
-    println!("Got message: {}", message);
+    // FIXME: line numbers are wrong with comment preprocessor}
 }
 
 unsafe extern "C" fn callback_ffi(message_type: i32, p_filename: cstr, line: i32, p_message: cstr) {

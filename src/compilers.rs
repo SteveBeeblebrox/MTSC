@@ -4,13 +4,9 @@ use html5ever::tokenizer::{
     ParseError, Token, TokenSink, TokenSinkResult, Tokenizer, TokenizerOpts, BufferQueue, Tag
 };
 
-use regex::{Regex,Captures};
-
 use std::convert::TryFrom;
 use std::default::Default;
-use std::path::PathBuf;
 use std::sync::Once;
-use std::fs;
 
 use v8;
 
@@ -42,33 +38,6 @@ impl From<CompileOptions> for MinifyOptions {
 }
 
 static V8_INIT: Once = Once::new();
-
-#[allow(dead_code)]
-pub fn expand_includes(source_text: String, source_path: PathBuf, record: &mut Vec<String>) -> String {
-    let header_regex = Regex::new(r"^(?:\s*//(?:(?:[^\r\n]+))?(?:\r?\n)?)+").unwrap();
-    let sub_regex = Regex::new(r"//#\s*?include(!?)\s+?([^\r\n]+)").unwrap();
-    header_regex.replace(&source_text, |captures: &Captures| {
-        sub_regex.replace_all(&captures[0].to_string(), |captures: &Captures| {
-            let msg = String::from(format!("Error resolving include `{}`",captures[2].to_string()).as_str());
-            
-            let mut path = source_path.to_path_buf();
-            path.push(captures[2].to_string());
-            
-            let path_string = String::from(path.to_str().expect(&msg));
-            
-            if captures[1] == String::from("!") || !record.contains(&path_string) {
-                record.push(path_string.clone());
-                return expand_includes(
-                    fs::read_to_string(path.to_str().expect(&msg)).expect(&msg),
-                    path.parent().expect(&msg).to_path_buf(),
-                    record
-                )
-            } else {
-                return String::from("")
-            }
-        }).to_string()
-    }).to_string()
-}
 
 #[allow(dead_code)]
 pub fn compile_typescript(text: &str, options: CompileOptions) -> Option<String> {
