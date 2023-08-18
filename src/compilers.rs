@@ -4,6 +4,9 @@ use html5ever::tokenizer::{
     ParseError, Token, TokenSink, TokenSinkResult, Tokenizer, TokenizerOpts, BufferQueue, Tag
 };
 
+use crate::wave;
+use wave::{Mode, preprocess_text};
+
 use std::convert::TryFrom;
 use std::default::Default;
 use std::sync::Once;
@@ -20,6 +23,10 @@ pub struct CompileOptions {
     pub use_jsx: bool,
     pub jsx_factory: Option<String>,
     pub jsx_fragment: Option<String>,
+
+    pub preprocessor_mode: Mode,
+    pub macros: Vec<String>,
+    pub filename: Option<String>,
 }
 
 #[derive(Clone)]
@@ -41,6 +48,8 @@ static V8_INIT: Once = Once::new();
 
 #[allow(dead_code)]
 pub fn compile_typescript(text: &str, options: CompileOptions) -> Option<String> {
+    let text: &str = preprocess_text(String::from(text), options.filename.unwrap_or(String::from("-")), options.preprocessor_mode, options.macros).expect("Error running preprocessor").as_str();
+
     V8_INIT.call_once(|| {
         let platform = v8::new_default_platform(0, false).make_shared();
         v8::V8::initialize_platform(platform);

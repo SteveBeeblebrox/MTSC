@@ -2,7 +2,6 @@ mod compilers;
 use compilers::{compile_typescript, compile_html, CompileOptions, minify_javascript, MinifyOptions};
 
 mod wave;
-use wave::{Mode, preprocess_text};
 
 use clap::{Arg, App};
 
@@ -160,6 +159,18 @@ fn main() {
 
         let minify = matches.occurrences_of("minify") > 0 && !html;
 
+        let macros: Vec<String> = match matches.values_of("define") {
+            Some(values) => values.into_iter().map(|v| String::from(v)).collect::<Vec<String>>(),
+            _ => vec![]
+        };
+        
+        let preprocessor_mode = match matches.value_of("preprocessor") {
+            Some("standard") | Some("c") => Mode::STANDARD,
+            Some("comment") => Mode::COMMENT,
+            None | Some("none") => Mode::NONE,
+            Some(other) => panic!("Unsupported preprocessor mode '{}'", other)
+        };
+
         let options = CompileOptions {
             target: String::from(matches.value_of("target").unwrap()),
             module: String::from({
@@ -177,22 +188,12 @@ fn main() {
             }),
             use_jsx,
             jsx_factory,
-            jsx_fragment
-        };
-        
-        let macros: Vec<String> = match matches.values_of("define") {
-            Some(values) => values.into_iter().map(|v| String::from(v)).collect::<Vec<String>>(),
-            _ => vec![]
-        };
-        
-        let preprocessor_mode = match matches.value_of("preprocessor") {
-            Some("standard") | Some("c") => Mode::STANDARD,
-            Some("comment") => Mode::COMMENT,
-            None | Some("none") => Mode::NONE,
-            Some(other) => panic!("Unsupported preprocessor mode '{}'", other)
-        };
+            jsx_fragment,
 
-        let input_text = preprocess_text(input_text, input_file.clone().unwrap_or(String::from("-")), preprocessor_mode, macros).expect("Error running preprocessor");
+            preprocessor_mode,
+            macros,
+            filename: input_file.clone()
+        };
 
         let result = if html {
             compile_html(input_text.as_str(), options.clone()).expect("Error compiling HTML")
