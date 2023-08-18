@@ -85,7 +85,6 @@ fn main() {
             .value_name("MACROS...")
             .help("Define macros using the form 'MACRO(x)=definition' (Unused if preprocessor is 'none')")
             .takes_value(true)
-            .max_values(1)
             .multiple(true)
         )
 
