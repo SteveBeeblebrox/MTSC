@@ -1,5 +1,6 @@
 use std::os::raw::c_char;
 
+#[derive(Clone)]
 pub enum Mode {
     NONE = -1,
     STANDARD = 0,

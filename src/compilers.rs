@@ -48,7 +48,7 @@ static V8_INIT: Once = Once::new();
 
 #[allow(dead_code)]
 pub fn compile_typescript(text: &str, options: CompileOptions) -> Option<String> {
-    let text: &str = preprocess_text(String::from(text), options.filename.unwrap_or(String::from("-")), options.preprocessor_mode, options.macros).expect("Error running preprocessor").as_str();
+    let text: String = preprocess_text(String::from(text), options.filename.unwrap_or(String::from("-")), options.preprocessor_mode, options.macros).expect("Error running preprocessor");
 
     V8_INIT.call_once(|| {
         let platform = v8::new_default_platform(0, false).make_shared();
@@ -74,7 +74,7 @@ pub fn compile_typescript(text: &str, options: CompileOptions) -> Option<String>
     let transpile_function = ts_obj.to_object(scope)?.get(scope, transpile_func_name)?.to_object(scope)?;
     let transpile_function = v8::Local::<v8::Function>::try_from(transpile_function).ok()?;
 
-    let text = v8::String::new(scope, text)?.into();
+    let text = v8::String::new(scope, text.as_str())?.into();
 
     let args = v8::Object::new(scope);
 

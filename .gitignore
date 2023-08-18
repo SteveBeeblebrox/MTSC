@@ -1,5 +1,13 @@
-*.js
-*.html
 .vscode
 target
 boost
+
+*.js
+*.mjs
+*.jsx
+*.html
+
+*.ts
+*.mts
+*.tsx
+*.tshtml

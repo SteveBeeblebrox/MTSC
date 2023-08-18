@@ -2,6 +2,7 @@ mod compilers;
 use compilers::{compile_typescript, compile_html, CompileOptions, minify_javascript, MinifyOptions};
 
 mod wave;
+use wave::Mode;
 
 use clap::{Arg, App};
 
