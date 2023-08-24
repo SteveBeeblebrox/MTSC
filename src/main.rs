@@ -73,7 +73,7 @@ fn main() {
             .short("p")
             .long("preprocessor")
             .value_name("TYPE")
-            .help("Sets which preprocessor to use if any ('c' or 'standard' is just like C/C++'s preprocessor, 'comment' looks for directives within single-line comments, e.g. '//#define')")
+            .help("Sets which preprocessor to use if any ('c' or 'standard' is just like C/C++'s preprocessor, 'comment' looks for directives within single-line triple-slash comments, e.g. '///#define')")
             .default_value("none")
             .takes_value(true)
             .possible_values(&["none", "standard", "c", "comment"])

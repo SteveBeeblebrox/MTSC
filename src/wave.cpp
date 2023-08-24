@@ -57,7 +57,7 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
         }
 };
 
-const boost::regex COMMENT_MODE_INPUT_ADJUSTMENT_PATTERN(R"XXX(^(\s*?)\/\/(?=\s*#))XXX"),
+const boost::regex COMMENT_MODE_INPUT_ADJUSTMENT_PATTERN(R"XXX(^(\s*?)\/\/\/(?=\s*#))XXX"),
                    COMMENT_MODE_OUTPUT_ADJUSTMENT_PATTERN(R"(\r?\n)" UFFFF R"(\r?\n(?=\s*#))"),
                    COMMENT_MODE_OUTPUT_ADJUSTMENT_PATTERN_EMPTY(R"(\r?\n)" UFFFF R"(\r?\n)"),
                    LINE_CONTINUATION_PATTERN(R"(\\\r?\n)"),
@@ -80,7 +80,7 @@ std::string& apply_output_adjustment(std::string &text, const bool FORMAT_COMMEN
     if(FORMAT_COMMENTS) {
         return text = boost::regex_replace(
             boost::regex_replace(text,
-                COMMENT_MODE_OUTPUT_ADJUSTMENT_PATTERN, "//"
+                COMMENT_MODE_OUTPUT_ADJUSTMENT_PATTERN, "///"
             ),
             COMMENT_MODE_OUTPUT_ADJUSTMENT_PATTERN_EMPTY, ""
         );
