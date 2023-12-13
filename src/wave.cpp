@@ -194,10 +194,7 @@ std::string preprocess_text(std::string text, const char* p_filename, const std:
         std::string result = out_stream.str();
         apply_output_adjustment(result, MODE == Mode::COMMENT);
         
-        char* p_out = new char[result.size()];
-        strcpy(p_out, result.c_str());
-
-        return p_out;
+        return result;
     }
     catch (boost::wave::cpp_exception const& e) {
         on_message(MessageType::EXCEPTION, e.file_name(), e.line_no(), e.description());
