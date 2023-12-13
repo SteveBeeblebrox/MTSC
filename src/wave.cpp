@@ -227,7 +227,7 @@ extern "C" {
         const std::vector<std::string> macros(p_macros, p_macros + macro_count);
 
         const std::string RESULT = preprocess_text(std::string(p_text), p_filename, (Mode)mode, macros, on_message);
-        char* p_out = new char[RESULT.size()];
+        char* p_out = new char[RESULT.size() + 1]; // +1 for terminating NUL
         strcpy(p_out, RESULT.c_str());
 
         return p_out;
