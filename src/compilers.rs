@@ -322,18 +322,22 @@ pub fn minify_javascript(text: &str, options: MinifyOptions) -> Option<String> {
 
     let args = v8::Object::new(scope);
 
-    // Compile Options
+    // Global Options
+    let module_prop_name = v8::String::new(scope, "module")?.into();
+    let module_prop_value = v8::Boolean::new(scope, options.module != "none").into();
+    args.set(scope, module_prop_name, module_prop_value);
+
+    // Compress Options
     let compress_prop_name = v8::String::new(scope, "compress")?.into();
     let compress_prop_value = v8::Object::new(scope);
-
 
     let ecma_prop_name = v8::String::new(scope, "ecma")?.into();
     let ecma_prop_value = v8::String::new(scope, options.target.to_lowercase().strip_prefix("es")?)?.into();
     compress_prop_value.set(scope, ecma_prop_name, ecma_prop_value);
 
-    let module_prop_name = v8::String::new(scope, "module")?.into();
-    let module_prop_value = v8::Boolean::new(scope, options.module != "none").into();
-    compress_prop_value.set(scope, module_prop_name, module_prop_value);
+    let keep_classnames_prop_name = v8::String::new(scope, "keep_classnames")?.into();
+    let keep_classnames_prop_value = v8::Boolean::new(scope, true).into();
+    compress_prop_value.set(scope, keep_classnames_prop_name, keep_classnames_prop_value);
 
     args.set(scope, compress_prop_name, compress_prop_value.into());
     
@@ -341,9 +345,9 @@ pub fn minify_javascript(text: &str, options: MinifyOptions) -> Option<String> {
     let mangle_prop_name = v8::String::new(scope, "mangle")?.into();
     let mangle_prop_value = v8::Object::new(scope);
 
-    let module_prop_name = v8::String::new(scope, "module")?.into();
-    let module_prop_value = v8::Boolean::new(scope, options.module != "none").into();
-    mangle_prop_value.set(scope, module_prop_name, module_prop_value);
+    let keep_classnames_prop_name = v8::String::new(scope, "keep_classnames")?.into();
+    let keep_classnames_prop_value = v8::Boolean::new(scope, true).into();
+    mangle_prop_value.set(scope, keep_classnames_prop_name, keep_classnames_prop_value);
 
     args.set(scope, mangle_prop_name, mangle_prop_value.into());
 
