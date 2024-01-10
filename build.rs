@@ -36,6 +36,7 @@ fn compile_wave() {
         .file("src/wave.cpp").compile("wave");
 
     println!("cargo:rustc-link-lib=static=boost_atomic");
+    println!("cargo:rustc-link-lib=static=boost_regex");
     println!("cargo:rustc-link-lib=static=boost_chrono");
     println!("cargo:rustc-link-lib=static=boost_filesystem");
     println!("cargo:rustc-link-lib=static=boost_thread");
