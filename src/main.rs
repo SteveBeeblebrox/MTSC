@@ -125,12 +125,12 @@ fn main() {
         let verbose = matches.occurrences_of("verbose") > 0;
         if cfg!(not(debug_assertions)) {
             panic::set_hook(Box::new(move |info| {
-                println!("\x1b[93merror\x1b[0m: {}", panic_message::panic_info_message(info));
+                eprintln!("\x1b[93merror\x1b[0m: {}", panic_message::panic_info_message(info));
                 
                 if verbose {
-                    println!("{:?}", Backtrace::new());
+                    eprintln!("{:?}", Backtrace::new());
                 } else {
-                    println!("rerun with -V for verbose error messages");
+                    eprintln!("rerun with -V for verbose error messages");
                 }
             }));
         }
