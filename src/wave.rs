@@ -1,8 +1,4 @@
 use std::vec::Vec;
-use std::ffi::{CString,CStr};
-use std::process::exit;
-
-// include!("ffi.rs");
 
 #[derive(Clone)]
 pub enum Mode {
@@ -37,7 +33,7 @@ mod ffi {
 //         MessageType::EXCEPTION => panic!("{}", message),
 //         MessageType::ERROR => {
 //             eprintln!("\x1b[91mpreprocessor error\x1b[0m: {} ({}:{})", message, filename, line);
-//             exit(1);
+//             exit(1); // use std::process::exit
 //         },
 //         MessageType::WARNING => eprintln!("\x1b[93mpreprocessor warning\x1b[0m: {} ({}:{})", message, filename, line)
 //     };
