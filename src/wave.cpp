@@ -19,9 +19,11 @@
 #define UFFFF "\uffff"
 #define UFFFE "\ufffe"
 
-#include "ffi.h"
+#include "wave.h"
+using namespace wave;
 
 typedef std::function<void(const MessageType TYPE, std::string filename, const i32 LINE, const std::string MESSAGE)> message_callback;
+
 
 template<typename TokenT>
 class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
@@ -123,7 +125,8 @@ struct adjusted_input_policy {
     };
 };
 
-
+#include <stdexcept>
+#include <exception>
 #include <cxxabi.h>
 const char* get_current_exception_name()
 {
@@ -139,7 +142,7 @@ template<Mode T>
 using iterator_type = boost::wave::pp_iterator<boost::wave::context<std::string::iterator, lex_iterator_type, adjusted_input_policy<T>, wave_hooks<token_type>>>;
 
 template<Mode MODE>
-std::string preprocess_text(std::string text, const char* p_filename, const std::vector<std::string> MACROS, message_callback on_message) {
+std::string _preprocess_text(std::string text, const char* p_filename, const std::vector<std::string> MACROS, message_callback on_message) {
     if(MODE == Mode::NONE) {
         return text;
     };
@@ -211,37 +214,35 @@ std::string preprocess_text(std::string text, const char* p_filename, const std:
         on_message(MessageType::EXCEPTION, current_position.get_file().c_str(), current_position.get_line(), e.what());
     }
     catch (...) {
-        on_message(MessageType::EXCEPTION, current_position.get_file().c_str(), current_position.get_line(), std::string("Unexpected exception caught (") + get_current_exception_name() + ")");
+        on_message(MessageType::EXCEPTION, current_position.get_file().c_str(), current_position.get_line(), std::string("error: unexpected exception caught (") + get_current_exception_name() + ")");
     }
     return "";
 }
 
-std::string preprocess_text(std::string text, const char* p_filename, const Mode MODE, const std::vector<std::string> MACROS, message_callback on_message) {
-    if(MODE == Mode::STANDARD) {
-        return preprocess_text<Mode::STANDARD>(text, p_filename, MACROS, on_message);
-    } else if(MODE == Mode::COMMENT) {
-        return preprocess_text<Mode::COMMENT>(text, p_filename, MACROS, on_message);
-    } else /*if(MODE == Mode::NONE)*/ {
-        return text;
-    }
-}
+#include <algorithm>
 
-extern "C" {
-    cstr preprocess_text_ffi(cstr p_text, cstr p_filename, i32 mode, size_t macro_count, cstr* const p_macros, message_callback_ptr p_on_message) {
-        message_callback on_message = [p_on_message](const MessageType TYPE, const std::string FILENAME, const i32 LINE, const std::string MESSAGE) {
-            p_on_message(TYPE, FILENAME.c_str(), LINE, MESSAGE.c_str());
+
+namespace wave {
+    rust::String preprocess_text(rust::String text, rust::String filename, const rust::Vec<rust::String> MACROS) {
+        message_callback on_message = [](const MessageType TYPE, const std::string FILENAME, const i32 LINE, const std::string MESSAGE) {
+            std::cerr<<MESSAGE<<std::endl;
         };
+        
+        std::vector<std::string> stdv;
+        stdv.reserve(MACROS.size());
+        std::transform(MACROS.begin(), MACROS.end(), std::back_inserter(stdv),[](const rust::String& str) { return std::string(str); });
 
-        const std::vector<std::string> macros(p_macros, p_macros + macro_count);
-
-        const std::string RESULT = preprocess_text(std::string(p_text), p_filename, (Mode)mode, macros, on_message);
-        char* p_out = new char[RESULT.size() + 1]; // +1 for terminating NUL
-        strcpy(p_out, RESULT.c_str());
-
-        return p_out;
-    }
-
-    void free_preprocess_result_ffi(cstr result) {
-        delete result;
+        
+        return _preprocess_text<Mode::COMMENT>(std::string(text), filename.c_str(), stdv, on_message);
     }
 }
+
+
+// int main() {
+//     cstr* const p = {};
+//     free_preprocess_result_ffi(preprocess_text_ffi("///#include \"nosuchfile.ts\"", "failtest.ts",1,0,p,[](i32 message_type, cstr p_filename, i32 line, cstr p_message) {
+//         std::cerr<<p_message<<std::endl;
+//     }));
+    
+//     return 0;
+// }

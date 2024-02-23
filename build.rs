@@ -2,7 +2,7 @@ use std::io::prelude::*;
 use std::fs::File;
 use std::env;
 
-use cc;
+use cxx_build;
 
 #[tokio::main]
 async fn main() {
@@ -30,10 +30,12 @@ async fn download_file(url: &str, path: &str) {
 }
 
 fn compile_wave() {
-    cc::Build::new().cpp(true).warnings(false)
-        .flag_if_supported("-std=c++11")
+    cxx_build::bridge("src/wave.rs")
+        .cpp(true).warnings(false)
+        .file("src/wave.cpp")
         .static_flag(true)
-        .file("src/wave.cpp").compile("wave");
+        .flag_if_supported("-std=c++11")
+        .compile("cxxbridge-wave");
 
     println!("cargo:rustc-link-lib=static=boost_atomic");
     println!("cargo:rustc-link-lib=static=boost_regex");
