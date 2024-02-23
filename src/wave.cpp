@@ -123,6 +123,14 @@ struct adjusted_input_policy {
     };
 };
 
+
+#include <cxxabi.h>
+const char* get_current_exception_name()
+{
+    int status;
+    return abi::__cxa_demangle(abi::__cxa_current_exception_type()->name(), 0, 0, &status);
+}
+
 typedef boost::wave::cpplexer::lex_token<> token_type;
 typedef boost::wave::cpplexer::lex_iterator<token_type> lex_iterator_type;
 template<Mode T>
@@ -203,7 +211,7 @@ std::string preprocess_text(std::string text, const char* p_filename, const std:
         on_message(MessageType::EXCEPTION, current_position.get_file().c_str(), current_position.get_line(), e.what());
     }
     catch (...) {
-        on_message(MessageType::EXCEPTION, current_position.get_file().c_str(), current_position.get_line(), "unexpected exception caught");
+        on_message(MessageType::EXCEPTION, current_position.get_file().c_str(), current_position.get_line(), std::string("Unexpected exception caught (") + get_current_exception_name() + ")");
     }
     return "";
 }
