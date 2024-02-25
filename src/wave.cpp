@@ -66,8 +66,8 @@ const boost::regex COMMENT_MODE_INPUT_ADJUSTMENT_PATTERN(R"XXX(^(\s*?)\/\/\/(?=\
                    LINE_CONTINUATION_UNDO_PATTERN(UFFFE)
     ;
 
-std::string& apply_input_adjustment(std::string &text, const bool FORMAT_COMMENTS, const bool ADD_NEWLINE = true) {
-    return text = (FORMAT_COMMENTS ? boost::regex_replace(
+std::string& apply_input_adjustment(std::string &text, const bool ADD_NEWLINE = true) {
+    return text = boost::regex_replace(
         boost::regex_replace(
             boost::regex_replace(text,
                 LINE_CONTINUATION_PATTERN, UFFFE
@@ -75,23 +75,18 @@ std::string& apply_input_adjustment(std::string &text, const bool FORMAT_COMMENT
             COMMENT_MODE_INPUT_ADJUSTMENT_PATTERN, "$1" "\n" UFFFF "\n"
         ),
         LINE_CONTINUATION_UNDO_PATTERN, "\\\\\n"
-    ) : text) + (ADD_NEWLINE ? "\n" : ""); // Add an extra \n to the end; wave fails on a trailing comment
+    ) + (ADD_NEWLINE ? "\n" : ""); // Add an extra \n to the end; wave fails on a trailing comment
 }
 
-std::string& apply_output_adjustment(std::string &text, const bool FORMAT_COMMENTS) {
-    if(FORMAT_COMMENTS) {
-        return text = boost::regex_replace(
-            boost::regex_replace(text,
-                COMMENT_MODE_OUTPUT_ADJUSTMENT_PATTERN, "///"
-            ),
-            COMMENT_MODE_OUTPUT_ADJUSTMENT_PATTERN_EMPTY, ""
-        );
-    } else {
-        return text;
-    }
+std::string& apply_output_adjustment(std::string &text) {
+    return text = boost::regex_replace(
+        boost::regex_replace(text,
+            COMMENT_MODE_OUTPUT_ADJUSTMENT_PATTERN, "///"
+        ),
+        COMMENT_MODE_OUTPUT_ADJUSTMENT_PATTERN_EMPTY, ""
+    );
 }
 
-template<int32_t MODE>
 struct adjusted_input_policy {
     template<typename IterContextT>
     class inner {
@@ -112,7 +107,7 @@ struct adjusted_input_policy {
                     std::istreambuf_iterator<char>(instream.rdbuf()),
                     std::istreambuf_iterator<char>());
 
-                apply_input_adjustment(iter_ctx.instring, MODE == Mode::COMMENT, false);
+                apply_input_adjustment(iter_ctx.instring, false);
 
                 iter_ctx.first = iterator_type(
                     iter_ctx.instring.begin(), iter_ctx.instring.end(),
@@ -128,31 +123,24 @@ struct adjusted_input_policy {
 #include <stdexcept>
 #include <exception>
 #include <cxxabi.h>
-const char* get_current_exception_name()
-{
+const char* get_current_exception_name() {
     int status;
     return abi::__cxa_demangle(abi::__cxa_current_exception_type()->name(), 0, 0, &status);
 }
 
 typedef boost::wave::cpplexer::lex_token<> token_type;
 typedef boost::wave::cpplexer::lex_iterator<token_type> lex_iterator_type;
-template<Mode T>
-using context_type = boost::wave::context<std::string::iterator, lex_iterator_type, adjusted_input_policy<T>, wave_hooks<token_type>>;
-template<Mode T>
-using iterator_type = boost::wave::pp_iterator<boost::wave::context<std::string::iterator, lex_iterator_type, adjusted_input_policy<T>, wave_hooks<token_type>>>;
 
-template<Mode MODE>
+using context_type = boost::wave::context<std::string::iterator, lex_iterator_type, adjusted_input_policy, wave_hooks<token_type>>;
+using iterator_type = boost::wave::pp_iterator<boost::wave::context<std::string::iterator, lex_iterator_type, adjusted_input_policy, wave_hooks<token_type>>>;
+
 std::string _preprocess_text(std::string text, const char* p_filename, const std::vector<std::string> MACROS, message_callback on_message) {
-    if(MODE == Mode::NONE) {
-        return text;
-    };
-
     boost::wave::util::file_position_type current_position;
 
     try {
-        apply_input_adjustment(text, MODE == Mode::COMMENT);
+        apply_input_adjustment(text);
 
-        context_type<MODE> ctx(text.begin(), text.end(), p_filename, wave_hooks<token_type>(true, true, on_message, &current_position));
+        context_type ctx(text.begin(), text.end(), p_filename, wave_hooks<token_type>(true, true, on_message, &current_position));
 
         // Configure features
         #define ENABLE(f) ctx.set_language(boost::wave::enable_##f(ctx.get_language()))
@@ -194,7 +182,7 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
             ctx.add_macro_definition(macro, false);
         }
 
-        iterator_type<MODE> first = ctx.begin(), last = ctx.end();
+        iterator_type first = ctx.begin(), last = ctx.end();
         std::stringstream out_stream;
         while (first != last) {
             current_position = (*first).get_position();
@@ -203,7 +191,7 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
         }
         
         std::string result = out_stream.str();
-        apply_output_adjustment(result, MODE == Mode::COMMENT);
+        apply_output_adjustment(result);
         
         return result;
     }
@@ -220,12 +208,10 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
 }
 
 #include <algorithm>
-
-
 namespace wave {
     rust::String preprocess_text(rust::String text, rust::String filename, const rust::Vec<rust::String> MACROS) {
         message_callback on_message = [](const MessageType TYPE, const std::string FILENAME, const i32 LINE, const std::string MESSAGE) {
-            std::cerr<<MESSAGE<<std::endl;
+           callback((i32)TYPE,FILENAME,LINE,MESSAGE);
         };
         
         std::vector<std::string> stdv;
@@ -233,16 +219,6 @@ namespace wave {
         std::transform(MACROS.begin(), MACROS.end(), std::back_inserter(stdv),[](const rust::String& str) { return std::string(str); });
 
         
-        return _preprocess_text<Mode::COMMENT>(std::string(text), filename.c_str(), stdv, on_message);
+        return _preprocess_text(std::string(text), filename.c_str(), stdv, on_message);
     }
 }
-
-
-// int main() {
-//     cstr* const p = {};
-//     free_preprocess_result_ffi(preprocess_text_ffi("///#include \"nosuchfile.ts\"", "failtest.ts",1,0,p,[](i32 message_type, cstr p_filename, i32 line, cstr p_message) {
-//         std::cerr<<p_message<<std::endl;
-//     }));
-    
-//     return 0;
-// }

@@ -6,13 +6,9 @@
 typedef int32_t i32;
 
 #include "rust/cxx.h"
+#include "mtsc/src/wave.rs.h"
 
 namespace wave {
-    enum Mode {
-        NONE = -1,
-        STANDARD = 0,
-        COMMENT = 1
-    };
 
     enum MessageType {
         ERROR = 1,

@@ -2,7 +2,6 @@ mod compilers;
 use compilers::{compile_typescript, compile_html, CompileOptions, minify_javascript, MinifyOptions};
 
 mod wave;
-use wave::Mode;
 
 use clap::{Arg, App};
 
@@ -17,6 +16,8 @@ use std::fs;
 use std::io::Read;
 use std::io;
 use std::panic;
+
+use std::process::exit;
 
 fn main() {
     let matches = App::new("MTSC")
@@ -72,11 +73,7 @@ fn main() {
         .arg(Arg::with_name("preprocessor")
             .short("p")
             .long("preprocessor")
-            .value_name("TYPE")
-            .help("Sets which preprocessor to use if any ('c' or 'standard' is just like C/C++'s preprocessor, 'comment' looks for directives within single-line triple-slash comments, e.g. '///#define')")
-            .default_value("none")
-            .takes_value(true)
-            .possible_values(&["none", "standard", "c", "comment"])
+            .help("Enables comment preprocessor (looks for directives within single-line triple-slash comments, e.g. '///#define')")
         )
 
         .arg(Arg::with_name("define")
@@ -124,16 +121,18 @@ fn main() {
 
         let verbose = matches.occurrences_of("verbose") > 0;
         if cfg!(not(debug_assertions)) {
-            panic::set_hook(Box::new(move |info| {
-                eprintln!("\x1b[93merror\x1b[0m: {}", panic_message::panic_info_message(info));
-                
-                if verbose {
-                    eprintln!("{:?}", Backtrace::new());
-                } else {
-                    eprintln!("rerun with -V for verbose error messages");
-                }
-            }));
+
         }
+        panic::set_hook(Box::new(move |info| {
+            eprintln!("\x1b[93merror\x1b[0m: {}", panic_message::panic_info_message(info));
+            
+            if verbose {
+                eprintln!("{:?}", Backtrace::new());
+            } else {
+                eprintln!("rerun with -V for verbose error messages");
+            }
+            exit(1);
+        }));
 
         // Determine input file (or stdin)
         let (input_file, input_text, input_type) = match matches.value_of("INPUT") {
@@ -142,10 +141,12 @@ fn main() {
                 let mut stdin = stdin.lock();
                 let mut line = String::new();
 
-                stdin.read_to_string(&mut line).expect("Error reading stdin");
+                stdin.read_to_string(&mut line).expect("could not read stdin");
                 (match matches.value_of("input-name") { Some(s) => Some(String::from(s)), _=> None }, String::from(line), String::from(""))
             },
-            Some(value) => (Some(String::from(value)), fs::read_to_string(value).expect("Error reading target file"), Path::new(value).extension().expect("Error getting file extension").to_str().expect("Error getting file extension").to_string())
+            Some(value) => (Some(String::from(value)), 
+            fs::read_to_string(value).ok().expect("could not read target file"),
+            Path::new(value).extension().expect("could not get target file extension").to_str().expect("could not get target file extension").to_string())
         };
 
         // Determine jsx configuration
@@ -164,12 +165,7 @@ fn main() {
             _ => vec![]
         };
         
-        let preprocessor_mode = match matches.value_of("preprocessor") {
-            Some("standard") | Some("c") => Mode::STANDARD,
-            Some("comment") => Mode::COMMENT,
-            None | Some("none") => Mode::NONE,
-            Some(other) => panic!("Unsupported preprocessor mode '{}'", other)
-        };
+        let use_preprocessor = matches.occurrences_of("preprocessor") > 0;
 
         let options = CompileOptions {
             target: String::from(matches.value_of("target").unwrap()),
@@ -190,19 +186,19 @@ fn main() {
             jsx_factory,
             jsx_fragment,
 
-            preprocessor_mode,
+            use_preprocessor,
             macros,
             filename: input_file.clone()
         };
 
         let result = if html {
-            compile_html(input_text.as_str(), options.clone()).expect("Error compiling HTML")
+            compile_html(input_text.as_str(), options.clone()).expect("error compiling HTML")
         } else {
-            compile_typescript(input_text.as_str(), options.clone()).expect("Error compiling TypeScript")
+            compile_typescript(input_text.as_str(), options.clone()).expect("error compiling TypeScript")
         };
 
         let result = if minify {
-            minify_javascript(result.as_str(), MinifyOptions::from(options.clone())).expect("Error minifying JavaScript")
+            minify_javascript(result.as_str(), MinifyOptions::from(options.clone())).expect("error minifying JavaScript")
         } else {
             result
         };
@@ -227,24 +223,24 @@ fn main() {
                     Some(input_file) => {
                         let mut path = PathBuf::from(input_file);
                         path.set_extension(output_type.as_str());
-                        let mut file = File::create(path).expect("Error creating output file");
-                        file.write_all(result.as_bytes()).expect("Error writing to output file");
+                        let mut file = File::create(path).expect("could not create output file");
+                        file.write_all(result.as_bytes()).expect("could not write to output file");
                     },
                     None => print!("{}", result.as_str())
                 }
             }
             Some(path) => {
-                let path = if Path::new(path).exists() && fs::metadata(path).expect("Error reading file metadata").is_dir() && input_file.is_some() {
+                let path = if Path::new(path).exists() && fs::metadata(path).expect("could not reading file metadata").is_dir() && input_file.is_some() {
                     let mut path = PathBuf::from(path);
-                    path.push(Path::new(&input_file.unwrap().to_string()).file_name().expect("Error getting file name").to_str().expect("Error getting file name"));
+                    path.push(Path::new(&input_file.unwrap().to_string()).file_name().expect("could not get file name").to_str().expect("could not get file name"));
                     path.set_extension(output_type.as_str());
                     path
                 } else {
                     PathBuf::from(path)
                 };
 
-                let mut file = File::create(path).expect("Error creating output file");
-                file.write_all(result.as_bytes()).expect("Error writing to output file");
+                let mut file = File::create(path).expect("could not create output file");
+                file.write_all(result.as_bytes()).expect("could not write to output file");
             }
         }
 }
