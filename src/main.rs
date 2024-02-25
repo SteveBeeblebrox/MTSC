@@ -24,7 +24,7 @@ fn main() {
         .version(clap::crate_version!())
         .version_short("v")
         .author(clap::crate_authors!())
-        .about("A standalone TypeScript compiler with support for JSX, HTML script tags, and minification")
+        .about("A standalone TypeScript compiler with support for JSX, HTML script tags, preprocessing, and minification")
 
         .arg(Arg::with_name("target")
             .short("t")
