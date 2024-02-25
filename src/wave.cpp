@@ -24,6 +24,7 @@ using namespace wave;
 
 typedef std::function<void(const MessageType TYPE, std::string filename, const i32 LINE, const std::string MESSAGE)> message_callback;
 
+const std::string HASHBANG_PREFIX = "#!";
 
 template<typename TokenT>
 class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
@@ -66,7 +67,11 @@ const boost::regex COMMENT_MODE_INPUT_ADJUSTMENT_PATTERN(R"XXX(^(\s*?)\/\/\/(?=\
                    LINE_CONTINUATION_UNDO_PATTERN(UFFFE)
     ;
 
-std::string& apply_input_adjustment(std::string &text, const bool ADD_NEWLINE = true) {
+std::string& apply_input_adjustment(std::string &text, const bool ADD_NEWLINE = true, const bool DISCARD_HASHBANG = false) {
+    if(DISCARD_HASHBANG && std::equal(HASHBANG_PREFIX.begin(), HASHBANG_PREFIX.end(), text.begin())) {
+        text = text.substr(text.find("\n")); // Leaves line numbers unchanged
+    }
+    
     return text = boost::regex_replace(
         boost::regex_replace(
             boost::regex_replace(text,
@@ -107,7 +112,7 @@ struct adjusted_input_policy {
                     std::istreambuf_iterator<char>(instream.rdbuf()),
                     std::istreambuf_iterator<char>());
 
-                apply_input_adjustment(iter_ctx.instring, false);
+                apply_input_adjustment(iter_ctx.instring, false, true);
 
                 iter_ctx.first = iterator_type(
                     iter_ctx.instring.begin(), iter_ctx.instring.end(),
@@ -138,6 +143,12 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
     boost::wave::util::file_position_type current_position;
 
     try {
+        std::string hashbang;
+        if(std::equal(HASHBANG_PREFIX.begin(), HASHBANG_PREFIX.end(), text.begin())) {
+            hashbang = text.substr(0,text.find("\n"));
+            text = text.substr(text.find("\n")); // Leaves line numbers unchanged
+        }
+
         apply_input_adjustment(text);
 
         context_type ctx(text.begin(), text.end(), p_filename, wave_hooks<token_type>(true, true, on_message, &current_position));
@@ -193,7 +204,7 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
         std::string result = out_stream.str();
         apply_output_adjustment(result);
         
-        return result;
+        return hashbang + result;
     }
     catch (boost::wave::cpp_exception const& e) {
         on_message(MessageType::EXCEPTION, e.file_name(), e.line_no(), e.description());
