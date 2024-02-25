@@ -19,9 +19,12 @@
 #define UFFFF "\uffff"
 #define UFFFE "\ufffe"
 
-#include "ffi.h"
+#include "wave.h"
+using namespace wave;
 
 typedef std::function<void(const MessageType TYPE, std::string filename, const i32 LINE, const std::string MESSAGE)> message_callback;
+
+const std::string HASHBANG_PREFIX = "#!";
 
 template<typename TokenT>
 class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
@@ -64,8 +67,12 @@ const boost::regex COMMENT_MODE_INPUT_ADJUSTMENT_PATTERN(R"XXX(^(\s*?)\/\/\/(?=\
                    LINE_CONTINUATION_UNDO_PATTERN(UFFFE)
     ;
 
-std::string& apply_input_adjustment(std::string &text, const bool FORMAT_COMMENTS, const bool ADD_NEWLINE = true) {
-    return text = (FORMAT_COMMENTS ? boost::regex_replace(
+std::string& apply_input_adjustment(std::string &text, const bool ADD_NEWLINE = true, const bool DISCARD_HASHBANG = false) {
+    if(DISCARD_HASHBANG && std::equal(HASHBANG_PREFIX.begin(), HASHBANG_PREFIX.end(), text.begin())) {
+        text = text.substr(text.find("\n")); // Leaves line numbers unchanged
+    }
+    
+    return text = boost::regex_replace(
         boost::regex_replace(
             boost::regex_replace(text,
                 LINE_CONTINUATION_PATTERN, UFFFE
@@ -73,23 +80,18 @@ std::string& apply_input_adjustment(std::string &text, const bool FORMAT_COMMENT
             COMMENT_MODE_INPUT_ADJUSTMENT_PATTERN, "$1" "\n" UFFFF "\n"
         ),
         LINE_CONTINUATION_UNDO_PATTERN, "\\\\\n"
-    ) : text) + (ADD_NEWLINE ? "\n" : ""); // Add an extra \n to the end; wave fails on a trailing comment
+    ) + (ADD_NEWLINE ? "\n" : ""); // Add an extra \n to the end; wave fails on a trailing comment
 }
 
-std::string& apply_output_adjustment(std::string &text, const bool FORMAT_COMMENTS) {
-    if(FORMAT_COMMENTS) {
-        return text = boost::regex_replace(
-            boost::regex_replace(text,
-                COMMENT_MODE_OUTPUT_ADJUSTMENT_PATTERN, "///"
-            ),
-            COMMENT_MODE_OUTPUT_ADJUSTMENT_PATTERN_EMPTY, ""
-        );
-    } else {
-        return text;
-    }
+std::string& apply_output_adjustment(std::string &text) {
+    return text = boost::regex_replace(
+        boost::regex_replace(text,
+            COMMENT_MODE_OUTPUT_ADJUSTMENT_PATTERN, "///"
+        ),
+        COMMENT_MODE_OUTPUT_ADJUSTMENT_PATTERN_EMPTY, ""
+    );
 }
 
-template<int32_t MODE>
 struct adjusted_input_policy {
     template<typename IterContextT>
     class inner {
@@ -110,7 +112,7 @@ struct adjusted_input_policy {
                     std::istreambuf_iterator<char>(instream.rdbuf()),
                     std::istreambuf_iterator<char>());
 
-                apply_input_adjustment(iter_ctx.instring, MODE == Mode::COMMENT, false);
+                apply_input_adjustment(iter_ctx.instring, false, true);
 
                 iter_ctx.first = iterator_type(
                     iter_ctx.instring.begin(), iter_ctx.instring.end(),
@@ -123,33 +125,33 @@ struct adjusted_input_policy {
     };
 };
 
-
+#include <stdexcept>
+#include <exception>
 #include <cxxabi.h>
-const char* get_current_exception_name()
-{
+const char* get_current_exception_name() {
     int status;
     return abi::__cxa_demangle(abi::__cxa_current_exception_type()->name(), 0, 0, &status);
 }
 
 typedef boost::wave::cpplexer::lex_token<> token_type;
 typedef boost::wave::cpplexer::lex_iterator<token_type> lex_iterator_type;
-template<Mode T>
-using context_type = boost::wave::context<std::string::iterator, lex_iterator_type, adjusted_input_policy<T>, wave_hooks<token_type>>;
-template<Mode T>
-using iterator_type = boost::wave::pp_iterator<boost::wave::context<std::string::iterator, lex_iterator_type, adjusted_input_policy<T>, wave_hooks<token_type>>>;
 
-template<Mode MODE>
-std::string preprocess_text(std::string text, const char* p_filename, const std::vector<std::string> MACROS, message_callback on_message) {
-    if(MODE == Mode::NONE) {
-        return text;
-    };
+using context_type = boost::wave::context<std::string::iterator, lex_iterator_type, adjusted_input_policy, wave_hooks<token_type>>;
+using iterator_type = boost::wave::pp_iterator<boost::wave::context<std::string::iterator, lex_iterator_type, adjusted_input_policy, wave_hooks<token_type>>>;
 
+std::string _preprocess_text(std::string text, const char* p_filename, const std::vector<std::string> MACROS, message_callback on_message) {
     boost::wave::util::file_position_type current_position;
 
     try {
-        apply_input_adjustment(text, MODE == Mode::COMMENT);
+        std::string hashbang;
+        if(std::equal(HASHBANG_PREFIX.begin(), HASHBANG_PREFIX.end(), text.begin())) {
+            hashbang = text.substr(0,text.find("\n"));
+            text = text.substr(text.find("\n")); // Leaves line numbers unchanged
+        }
 
-        context_type<MODE> ctx(text.begin(), text.end(), p_filename, wave_hooks<token_type>(true, true, on_message, &current_position));
+        apply_input_adjustment(text);
+
+        context_type ctx(text.begin(), text.end(), p_filename, wave_hooks<token_type>(true, true, on_message, &current_position));
 
         // Configure features
         #define ENABLE(f) ctx.set_language(boost::wave::enable_##f(ctx.get_language()))
@@ -191,7 +193,7 @@ std::string preprocess_text(std::string text, const char* p_filename, const std:
             ctx.add_macro_definition(macro, false);
         }
 
-        iterator_type<MODE> first = ctx.begin(), last = ctx.end();
+        iterator_type first = ctx.begin(), last = ctx.end();
         std::stringstream out_stream;
         while (first != last) {
             current_position = (*first).get_position();
@@ -200,9 +202,9 @@ std::string preprocess_text(std::string text, const char* p_filename, const std:
         }
         
         std::string result = out_stream.str();
-        apply_output_adjustment(result, MODE == Mode::COMMENT);
+        apply_output_adjustment(result);
         
-        return result;
+        return hashbang + result;
     }
     catch (boost::wave::cpp_exception const& e) {
         on_message(MessageType::EXCEPTION, e.file_name(), e.line_no(), e.description());
@@ -211,37 +213,23 @@ std::string preprocess_text(std::string text, const char* p_filename, const std:
         on_message(MessageType::EXCEPTION, current_position.get_file().c_str(), current_position.get_line(), e.what());
     }
     catch (...) {
-        on_message(MessageType::EXCEPTION, current_position.get_file().c_str(), current_position.get_line(), std::string("Unexpected exception caught (") + get_current_exception_name() + ")");
+        on_message(MessageType::EXCEPTION, current_position.get_file().c_str(), current_position.get_line(), std::string("error: unexpected exception caught (") + get_current_exception_name() + ")");
     }
     return "";
 }
 
-std::string preprocess_text(std::string text, const char* p_filename, const Mode MODE, const std::vector<std::string> MACROS, message_callback on_message) {
-    if(MODE == Mode::STANDARD) {
-        return preprocess_text<Mode::STANDARD>(text, p_filename, MACROS, on_message);
-    } else if(MODE == Mode::COMMENT) {
-        return preprocess_text<Mode::COMMENT>(text, p_filename, MACROS, on_message);
-    } else /*if(MODE == Mode::NONE)*/ {
-        return text;
-    }
-}
-
-extern "C" {
-    cstr preprocess_text_ffi(cstr p_text, cstr p_filename, i32 mode, size_t macro_count, cstr* const p_macros, message_callback_ptr p_on_message) {
-        message_callback on_message = [p_on_message](const MessageType TYPE, const std::string FILENAME, const i32 LINE, const std::string MESSAGE) {
-            p_on_message(TYPE, FILENAME.c_str(), LINE, MESSAGE.c_str());
+#include <algorithm>
+namespace wave {
+    rust::String preprocess_text(rust::String text, rust::String filename, const rust::Vec<rust::String> MACROS) {
+        message_callback on_message = [](const MessageType TYPE, const std::string FILENAME, const i32 LINE, const std::string MESSAGE) {
+           callback((i32)TYPE,FILENAME,LINE,MESSAGE);
         };
+        
+        std::vector<std::string> stdv;
+        stdv.reserve(MACROS.size());
+        std::transform(MACROS.begin(), MACROS.end(), std::back_inserter(stdv),[](const rust::String& str) { return std::string(str); });
 
-        const std::vector<std::string> macros(p_macros, p_macros + macro_count);
-
-        const std::string RESULT = preprocess_text(std::string(p_text), p_filename, (Mode)mode, macros, on_message);
-        char* p_out = new char[RESULT.size() + 1]; // +1 for terminating NUL
-        strcpy(p_out, RESULT.c_str());
-
-        return p_out;
-    }
-
-    void free_preprocess_result_ffi(cstr result) {
-        delete result;
+        
+        return _preprocess_text(std::string(text), filename.c_str(), stdv, on_message);
     }
 }

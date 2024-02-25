@@ -5,7 +5,7 @@ use html5ever::tokenizer::{
 };
 
 use crate::wave;
-use wave::{Mode, preprocess_text};
+use wave::{preprocess_text};
 
 use std::convert::TryFrom;
 use std::default::Default;
@@ -24,7 +24,7 @@ pub struct CompileOptions {
     pub jsx_factory: Option<String>,
     pub jsx_fragment: Option<String>,
 
-    pub preprocessor_mode: Mode,
+    pub use_preprocessor: bool,
     pub macros: Vec<String>,
     pub filename: Option<String>,
 }
@@ -48,7 +48,11 @@ static V8_INIT: Once = Once::new();
 
 #[allow(dead_code)]
 pub fn compile_typescript(text: &str, options: CompileOptions) -> Option<String> {
-    let text: String = preprocess_text(String::from(text), options.filename.unwrap_or(String::from("-")), options.preprocessor_mode, options.macros).expect("Error running preprocessor");
+    let text: String = if options.use_preprocessor {
+        preprocess_text(String::from(text), options.filename.unwrap_or(String::from("-")), options.macros).expect("error running preprocessor")
+    } else {
+        text.to_string()
+    };
 
     V8_INIT.call_once(|| {
         let platform = v8::new_default_platform(0, false).make_shared();
@@ -244,7 +248,7 @@ impl TokenSink for &mut Document {
                                     compile_typescript(
                                             &script_buffer.lines().map(|line| line.strip_prefix(indentation.as_str()).unwrap_or(line).to_string()).collect::<Vec<String>>().join("\n"),
                                             options
-                                        ).expect("Error compiling TypeScript within HTML")
+                                        ).expect("error compiling TypeScript within HTML")
                                     .lines().map(|line| format!("{}{}", indentation, line)).collect::<Vec<String>>().join("\n")
                                 ));
                                 
