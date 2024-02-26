@@ -18,3 +18,9 @@ cc = "1.0.82"
 reqwest = "0.11.18"
 tokio = { version = "1.20.4", features = ["full"] }
 cxx-build = "1.0"
+
+[profile.release]
+opt-level = "z"
+codegen-units = 1
+lto = true
+strip = true
