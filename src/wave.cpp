@@ -67,7 +67,7 @@ const boost::regex COMMENT_MODE_INPUT_ADJUSTMENT_PATTERN(R"XXX(^(\s*?)\/\/\/(?=\
                    LINE_CONTINUATION_UNDO_PATTERN(UFFFE)
     ;
 
-std::string& apply_input_adjustment(std::string &text, const bool ADD_NEWLINE = true, const bool DISCARD_HASHBANG = false) {
+std::string& apply_input_adjustment(std::string &text, const bool DISCARD_HASHBANG = false) {
     if(DISCARD_HASHBANG && std::equal(HASHBANG_PREFIX.begin(), HASHBANG_PREFIX.end(), text.begin())) {
         text = text.substr(text.find("\n")); // Leaves line numbers unchanged
     }
@@ -80,7 +80,7 @@ std::string& apply_input_adjustment(std::string &text, const bool ADD_NEWLINE = 
             COMMENT_MODE_INPUT_ADJUSTMENT_PATTERN, "$1" "\n" UFFFF "\n"
         ),
         LINE_CONTINUATION_UNDO_PATTERN, "\\\\\n"
-    ) + (ADD_NEWLINE ? "\n" : ""); // Add an extra \n to the end; wave fails on a trailing comment
+    ) + "\n"; // Add an extra \n to the end; wave fails on a trailing comment
 }
 
 std::string& apply_output_adjustment(std::string &text) {
@@ -112,7 +112,7 @@ struct adjusted_input_policy {
                     std::istreambuf_iterator<char>(instream.rdbuf()),
                     std::istreambuf_iterator<char>());
 
-                apply_input_adjustment(iter_ctx.instring, false, true);
+                apply_input_adjustment(iter_ctx.instring, true);
 
                 iter_ctx.first = iterator_type(
                     iter_ctx.instring.begin(), iter_ctx.instring.end(),
@@ -212,7 +212,7 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
             } catch (boost::wave::cpp_exception const &e) {
                 if (boost::wave::is_recoverable(e)) {
                     need_to_advance = true;
-                    // on_message(MessageType::WARNING, e.file_name(), e.line_no(), e.description()); Minor C++ issues tend to be fine in js 
+                    on_message(MessageType::WARNING, e.file_name(), e.line_no(), e.description());
                 }
                 else {
                     throw;
@@ -221,7 +221,7 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
             catch (boost::wave::cpplexer::lexing_exception const &e) {
                 if (boost::wave::cpplexer::is_recoverable(e)) {
                     need_to_advance = true;
-                    // on_message(MessageType::WARNING, e.file_name(), e.line_no(), e.description()); Minor C++ issues tend to be fine in js
+                    on_message(MessageType::WARNING, e.file_name(), e.line_no(), e.description());
                 }
                 else {
                     throw;
