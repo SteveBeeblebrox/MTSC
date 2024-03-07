@@ -195,11 +195,39 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
 
         iterator_type first = ctx.begin(), last = ctx.end();
         std::stringstream out_stream;
-        while (first != last) {
-            current_position = (*first).get_position();
-            out_stream << (*first).get_value();
-            ++first;
-        }
+
+        bool need_to_advance = false, finished = false;
+        do {
+            try {
+                if (need_to_advance) {
+                    ++first;
+                    need_to_advance = false;
+                }
+                while (first != last) {
+                    current_position = (*first).get_position();
+                    out_stream << (*first).get_value();
+                    ++first;
+                }
+                finished = true;
+            } catch (boost::wave::cpp_exception const &e) {
+                if (boost::wave::is_recoverable(e)) {
+                    need_to_advance = true;
+                    // on_message(MessageType::WARNING, e.file_name(), e.line_no(), e.description()); Minor C++ issues tend to be fine in js 
+                }
+                else {
+                    throw;
+                }
+            }
+            catch (boost::wave::cpplexer::lexing_exception const &e) {
+                if (boost::wave::cpplexer::is_recoverable(e)) {
+                    need_to_advance = true;
+                    // on_message(MessageType::WARNING, e.file_name(), e.line_no(), e.description()); Minor C++ issues tend to be fine in js
+                }
+                else {
+                    throw;
+                }
+            }
+        } while(!finished);
         
         std::string result = out_stream.str();
         apply_output_adjustment(result);
@@ -208,6 +236,9 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
     }
     catch (boost::wave::cpp_exception const& e) {
         on_message(MessageType::EXCEPTION, e.file_name(), e.line_no(), e.description());
+    }
+    catch (boost::wave::cpplexer::lexing_exception const& e) {
+        on_message(MessageType::EXCEPTION, current_position.get_file().c_str(), current_position.get_line(), e.description());
     }
     catch (std::exception const& e) {
         on_message(MessageType::EXCEPTION, current_position.get_file().c_str(), current_position.get_line(), e.what());
