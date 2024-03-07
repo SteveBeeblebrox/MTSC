@@ -23,4 +23,4 @@ cxx-build = "1.0"
 opt-level = "z"
 codegen-units = 1
 lto = true
-strip = true
+strip = "debuginfo"
