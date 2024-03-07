@@ -27,10 +27,10 @@ mod ffi {
 fn callback(message_type: i32, filename: String, line: i32, message: String) {
     match message_type {
         i if i == MessageType::ERROR as i32 => {
-            eprintln!("\x1b[91mpreprocessor error\x1b[0m: {} ({}:{})", message, filename, line);
+            eprintln!("\x1b[91mpreprocessor error\x1b[0m: {} ({}:{})", message.trim_start_matches("error: "), filename, line);
             exit(3);
         },
-        i if i == MessageType::WARNING as i32 => eprintln!("\x1b[93mpreprocessor warning\x1b[0m: {} ({}:{})", message, filename, line),
+        i if i == MessageType::WARNING as i32 => eprintln!("\x1b[93mpreprocessor warning\x1b[0m: {} ({}:{})", message.trim_start_matches("warning: "), filename, line),
         _ => panic!("{} at {filename}:{line}", message.trim_start_matches("error: "))
     };
 }
