@@ -124,7 +124,7 @@ fn main() {
 
         }
         panic::set_hook(Box::new(move |info| {
-            eprintln!("\x1b[93merror\x1b[0m: {}", panic_message::panic_info_message(info));
+            eprintln!("\x1b[91;1merror\x1b[0m: {}", panic_message::panic_info_message(info));
             
             if verbose {
                 eprintln!("{:?}", Backtrace::new());

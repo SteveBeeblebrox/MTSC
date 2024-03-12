@@ -26,6 +26,40 @@ typedef std::function<void(const MessageType TYPE, std::string filename, const i
 
 const std::string HASHBANG_PREFIX = "#!";
 
+template <typename IteratorT>
+inline std::string as_unescaped_string(IteratorT it, IteratorT const& end) {    
+    std::string result;
+    while(it != end) {
+        switch (boost::wave::token_id(*it)) {
+            case boost::wave::T_STRINGLIT: {
+                    std::string val (boost::wave::util::impl::unescape_lit((*it).get_value()).c_str());
+                    val.erase(val.size()-1);
+                    val.erase(0, 1);
+                    result += val;
+                }
+                break;
+            default:
+                break;
+        }
+        it++;
+    }
+    return result;
+}
+
+template <typename ContainerT>
+inline std::string as_unescaped_string(ContainerT const &token_sequence) {
+    return as_unescaped_string(token_sequence.begin(), token_sequence.end());
+}
+
+// return the string representation of a token sequence
+template <typename String, typename Container>
+inline String
+as_unescaped_string(Container const &token_sequence)
+{
+    return as_unescaped_string<String>(token_sequence.begin(), 
+        token_sequence.end());
+}
+
 template<typename TokenT>
 class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
 {
@@ -45,6 +79,31 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                     ctx, token, need_preserve_comments(ctx.get_language()),
                     PRESERVE_BOL_WHITESPACE, skipped_newline) ?
                 !PRESERVE_WHITESPACE : false;
+        }
+
+        template <typename ContextT, typename ContainerT>
+        bool interpret_pragma(ContextT& ctx, ContainerT &pending, TokenT const& option, ContainerT const& values, TokenT const& act_token) {
+            if(option.get_value() == "eval") {
+                typedef typename ContextT::iterator_type iterator_type;
+                try {
+                    std::string source = as_unescaped_string(values);
+                    
+                    ContainerT pragma;
+                    iterator_type end = ctx.end();
+                    
+                    for(iterator_type it = ctx.begin(source.begin(), source.end()); it != end && boost::wave::token_id(*it) != boost::wave::T_EOF; std::advance(it, 2)) {
+                        pragma.push_back(*it);
+                    }
+
+                    pending.splice(pending.begin(), pragma);
+
+                    return true;
+                } catch(...) {
+                    return false;
+                }
+            }
+
+            return false;
         }
 
         template <typename ContextT, typename ContainerT>
