@@ -60,6 +60,19 @@ as_unescaped_string(Container const &token_sequence)
         token_sequence.end());
 }
 
+template <typename ContextT>
+struct reset_language_support {
+    ContextT& ctx_;
+    boost::wave::language_support lang_;
+
+    reset_language_support(ContextT& ctx) : ctx_(ctx), lang_(ctx.get_language()) {
+        ctx.set_language(boost::wave::enable_single_line(lang_), false);
+    }
+    ~reset_language_support() {
+        ctx_.set_language(lang_, false);
+    }
+};
+
 template<typename TokenT>
 class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
 {
@@ -87,11 +100,12 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                 typedef typename ContextT::iterator_type iterator_type;
                 try {
                     std::string source = as_unescaped_string(values);
+                    reset_language_support<ContextT> lang(ctx);
                     
                     ContainerT pragma;
                     iterator_type end = ctx.end();
                     
-                    for(iterator_type it = ctx.begin(source.begin(), source.end()); it != end && boost::wave::token_id(*it) != boost::wave::T_EOF; std::advance(it, 2)) {
+                    for(iterator_type it = ctx.begin(source.begin(), source.end()); it != end && boost::wave::token_id(*it) != boost::wave::T_EOF; std::advance(it, 1)) {
                         pragma.push_back(*it);
                     }
 
@@ -319,7 +333,6 @@ namespace wave {
         stdv.reserve(MACROS.size());
         std::transform(MACROS.begin(), MACROS.end(), std::back_inserter(stdv),[](const rust::String& str) { return std::string(str); });
 
-        
         return _preprocess_text(std::string(text), filename.c_str(), stdv, on_message);
     }
 }
