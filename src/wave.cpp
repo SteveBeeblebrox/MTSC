@@ -104,8 +104,8 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                     
                     ContainerT pragma;
                     iterator_type end = ctx.end();
-                    
-                    for(iterator_type it = ctx.begin(source.begin(), source.end()); it != end && boost::wave::token_id(*it) != boost::wave::T_EOF; std::advance(it, 1)) {
+
+                    for (iterator_type it = ctx.begin(source.begin(), source.end()); it < end && boost::wave::token_id(*it) != boost::wave::T_EOF; it++) {
                         pragma.push_back(*it);
                     }
 
