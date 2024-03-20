@@ -5,6 +5,10 @@
 #include <sstream>
 #include <cstdlib>
 
+#define protected public
+#define private public
+#define BOOST_NO_MEMBER_TEMPLATE_FRIENDS
+
 // Static wave configuration
 #define BOOST_WAVE_SUPPORT_CPP1Z 1
 #define BOOST_WAVE_SUPPORT_MS_EXTENSIONS 0
@@ -101,18 +105,31 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                 try {
                     std::string source = as_unescaped_string(values);
                     reset_language_support<ContextT> lang(ctx);
-                    
+
+                    ctx.push_iteration_context(ctx.get_main_pos(),ctx.iter_ctxs.top());
+
                     ContainerT pragma;
                     iterator_type end = ctx.end();
 
-                    for (iterator_type it = ctx.begin(source.begin(), source.end()); it < end && boost::wave::token_id(*it) != boost::wave::T_EOF; it++) {
+                    for (iterator_type it = ctx.begin(source.begin(), source.end()); it <= end && boost::wave::token_id(*it) != boost::wave::T_EOF; it++) {
+                        std::cerr<<"ack"<<std::endl;
                         pragma.push_back(*it);
                     }
 
                     pending.splice(pending.begin(), pragma);
+                    ctx.pop_iteration_context();
 
                     return true;
+                } catch (boost::wave::cpp_exception const& e) {
+                    std::cerr<<e.description()<<std::endl;
+                }
+                catch (boost::wave::cpplexer::lexing_exception const& e) {
+                    std::cerr<<e.description()<<std::endl;
+                }
+                catch (std::exception const& e) {
+                    std::cerr<<e.what()<<std::endl;
                 } catch(...) {
+                    std::cerr<<"unknown error"<<std::endl;
                     return false;
                 }
             }
@@ -269,6 +286,8 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
         iterator_type first = ctx.begin(), last = ctx.end();
         std::stringstream out_stream;
 
+        ctx.push_iteration_context(ctx.get_main_pos(),first.get_functor().iter_ctx);
+
         bool need_to_advance = false, finished = false;
         do {
             try {
@@ -279,6 +298,7 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
                 while (first != last) {
                     current_position = (*first).get_position();
                     out_stream << (*first).get_value();
+                    auto functor = first.get_functor();
                     ++first;
                 }
                 finished = true;
