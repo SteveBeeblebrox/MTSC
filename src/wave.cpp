@@ -112,7 +112,6 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                     iterator_type end = ctx.end();
 
                     for (iterator_type it = ctx.begin(source.begin(), source.end()); it <= end && boost::wave::token_id(*it) != boost::wave::T_EOF; it++) {
-                        std::cerr<<"ack"<<std::endl;
                         pragma.push_back(*it);
                     }
 
@@ -120,16 +119,7 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                     ctx.pop_iteration_context();
 
                     return true;
-                } catch (boost::wave::cpp_exception const& e) {
-                    std::cerr<<e.description()<<std::endl;
-                }
-                catch (boost::wave::cpplexer::lexing_exception const& e) {
-                    std::cerr<<e.description()<<std::endl;
-                }
-                catch (std::exception const& e) {
-                    std::cerr<<e.what()<<std::endl;
                 } catch(...) {
-                    std::cerr<<"unknown error"<<std::endl;
                     return false;
                 }
             }
@@ -298,7 +288,6 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
                 while (first != last) {
                     current_position = (*first).get_position();
                     out_stream << (*first).get_value();
-                    auto functor = first.get_functor();
                     ++first;
                 }
                 finished = true;
