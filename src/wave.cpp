@@ -4,10 +4,12 @@
 #include <vector>
 #include <sstream>
 #include <cstdlib>
+#include <stack>
 
+// In order to make the pragma mtsc eval("...") work,
+// we need access to some wave internals.
 #define protected public
 #define private public
-#define BOOST_NO_MEMBER_TEMPLATE_FRIENDS
 
 // Static wave configuration
 #define BOOST_WAVE_SUPPORT_CPP1Z 1
@@ -102,21 +104,29 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
         bool interpret_pragma(ContextT& ctx, ContainerT &pending, TokenT const& option, ContainerT const& values, TokenT const& act_token) {
             if(option.get_value() == "eval") {
                 typedef typename ContextT::iterator_type iterator_type;
+                typedef typename ContextT::iter_size_type iter_size_type;
                 try {
                     std::string source = as_unescaped_string(values);
                     reset_language_support<ContextT> lang(ctx);
 
-                    ctx.push_iteration_context(ctx.get_main_pos(),ctx.iter_ctxs.top());
+                    iter_size_type depth = ctx.iter_ctxs.size();
+
+                    if(depth != 0) {
+                        ctx.push_iteration_context(ctx.get_main_pos(),ctx.iter_ctxs.top());
+                    }
 
                     ContainerT pragma;
                     iterator_type end = ctx.end();
 
-                    for (iterator_type it = ctx.begin(source.begin(), source.end()); it <= end && boost::wave::token_id(*it) != boost::wave::T_EOF; it++) {
+                    for(iterator_type it = ctx.begin(source.begin(), source.end()); it <= end && boost::wave::token_id(*it) != boost::wave::T_EOF; it++) {
                         pragma.push_back(*it);
                     }
 
                     pending.splice(pending.begin(), pragma);
-                    ctx.pop_iteration_context();
+                    
+                    if(depth != 0) {
+                        ctx.pop_iteration_context();
+                    }
 
                     return true;
                 } catch(...) {
