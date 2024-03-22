@@ -36,6 +36,7 @@ fn compile_wave() {
         .file("src/wave.cpp")
         .static_flag(true)
         .flag_if_supported("-std=c++11")
+        .flag_if_supported("-fno-access-control")
         .compile("cxxbridge-wave");
 
     println!("cargo:rustc-link-lib=static=boost_atomic");
