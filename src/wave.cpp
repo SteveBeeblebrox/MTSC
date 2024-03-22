@@ -6,11 +6,6 @@
 #include <cstdlib>
 #include <stack>
 
-// In order to make the pragma mtsc eval("...") work,
-// we need access to some wave internals.
-#define protected public
-#define private public
-
 // Static wave configuration
 #define BOOST_WAVE_SUPPORT_CPP1Z 1
 #define BOOST_WAVE_SUPPORT_MS_EXTENSIONS 0
@@ -113,10 +108,14 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
 
                     ContainerT pragma;
                     iterator_type end = ctx.end();
+                    iterator_type it = ctx.begin(source.begin(), source.end());
 
-                    for(iterator_type it = ctx.begin(source.begin(), source.end()); it <= end && boost::wave::token_id(*it) != boost::wave::T_EOF; it++) {
+                    while(it < end && boost::wave::token_id(*it) != boost::wave::T_EOF) {
                         pragma.push_back(*it);
+                        it++;
                     }
+
+                    it++;
 
                     pending.splice(pending.begin(), pragma);
                     
