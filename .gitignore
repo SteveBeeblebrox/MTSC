@@ -11,3 +11,5 @@ boost
 *.mts
 *.tsx
 *.tshtml
+
+!src/adjustments.ts

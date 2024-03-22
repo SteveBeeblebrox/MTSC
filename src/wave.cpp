@@ -142,36 +142,44 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
         }
 };
 
-const boost::regex COMMENT_MODE_INPUT_ADJUSTMENT_PATTERN(R"XXX(^(\s*?)\/\/\/(?=\s*#))XXX"),
-                   COMMENT_MODE_OUTPUT_ADJUSTMENT_PATTERN(R"(\r?\n)" UFFFF R"(\r?\n(?=\s*#))"),
-                   COMMENT_MODE_OUTPUT_ADJUSTMENT_PATTERN_EMPTY(R"(\r?\n)" UFFFF R"(\r?\n)"),
-                   LINE_CONTINUATION_PATTERN(R"(\\\r?\n)"),
-                   LINE_CONTINUATION_UNDO_PATTERN(UFFFE)
-    ;
+// See adjustments.ts
+// \u{fffe}0;       Scope: apply_input_adjustment (marks escaped newlines)
+// \u{ffff}17;      Scope: preprocess_text (escape normal hashtags like those in private properties)
+// \u{ffff}91;      Scope: preprocess_text (mark split lines)
 
 std::string& apply_input_adjustment(std::string &text, const bool DISCARD_HASHBANG = false) {
+    auto replace = [&](const boost::regex& regex, const std::string& replacement) {
+        return text = boost::regex_replace(text,regex,replacement);
+    };
+
     if(DISCARD_HASHBANG && std::equal(HASHBANG_PREFIX.begin(), HASHBANG_PREFIX.end(), text.begin())) {
         text = text.substr(text.find("\n")); // Leaves line numbers unchanged
     }
     
-    return text = boost::regex_replace(
-        boost::regex_replace(
-            boost::regex_replace(text,
-                LINE_CONTINUATION_PATTERN, UFFFE
-            ),
-            COMMENT_MODE_INPUT_ADJUSTMENT_PATTERN, "$1" "\n" UFFFF "\n"
-        ),
-        LINE_CONTINUATION_UNDO_PATTERN, "\\\\\n"
-    ) + "\n"; // Add an extra \n to the end; wave fails on a trailing comment
+    replace(boost::regex("\\\\\\r?\\n"), UFFFE "0;");                           // Unescape newlines
+    /////////////////////////////////
+
+    replace(boost::regex("^(?=\\s*?#)"), UFFFF "17;");                          // Block normal #...
+    replace(boost::regex("^(\\s*?)\\/\\/\\/(?=\\s*?#)"), "$1" UFFFF "91;\n");   // Split ///#...
+
+    /////////////////////////////////
+    replace(boost::regex(UFFFE "0;"), "\\\\\n");                                // Re-escape newlines
+
+    text += "\n"; // Add an extra \n to the end; wave fails on a trailing comment
+
+    return text;
 }
 
 std::string& apply_output_adjustment(std::string &text) {
-    return text = boost::regex_replace(
-        boost::regex_replace(text,
-            COMMENT_MODE_OUTPUT_ADJUSTMENT_PATTERN, "///"
-        ),
-        COMMENT_MODE_OUTPUT_ADJUSTMENT_PATTERN_EMPTY, ""
-    );
+    auto replace = [&](const boost::regex& regex, const std::string& replacement) {
+        return text = boost::regex_replace(text,regex,replacement);
+    };
+
+    replace(boost::regex(UFFFF "17;"), "");                                     // Unblock normal #...
+    replace(boost::regex(UFFFF "91;\\r?\\n(?=\\s*?#)"), "///");                 // Unsplit unused ///#
+    replace(boost::regex(UFFFF "91;\\r?\\n"), "");                              // Discard used ///# splits
+
+    return text;
 }
 
 struct adjusted_input_policy {
