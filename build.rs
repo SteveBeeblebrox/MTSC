@@ -18,7 +18,7 @@ async fn main() {
 
     println!("cargo:rerun-if-env-changed=CARGO_PKG_VERSION");
     println!("cargo:rerun-if-changed=src/wave.cpp");
-    println!("cargo:rerun-if-changed=src/wave.h");
+    println!("cargo:rerun-if-changed=src/wave.hpp");
     println!("cargo:rerun-if-changed=build.rs");
 }
 

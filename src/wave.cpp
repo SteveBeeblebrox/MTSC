@@ -20,7 +20,7 @@
 #define UFFFF "\uffff"
 #define UFFFE "\ufffe"
 
-#include "wave.h"
+#include "wave.hpp"
 using namespace wave;
 
 typedef std::function<void(const MessageType TYPE, std::string filename, const i32 LINE, const std::string MESSAGE)> message_callback;

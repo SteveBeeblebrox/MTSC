@@ -12,4 +12,4 @@ boost
 *.tsx
 *.tshtml
 
-!src/adjustments.ts
+!adjustments.ts
