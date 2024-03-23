@@ -127,18 +127,24 @@ interpret_pragma(ContextT &ctx, typename ContextT::token_type const &act_token,
             if (!ctx.get_hooks().interpret_pragma(
                   ctx.derived(), pending, option, values, act_token))
             {
-                // unknown #pragma option
-                string_type option_str((*it).get_value());
+// Start Patch
+                // // unknown #pragma option
+                // string_type option_str((*it).get_value());
 
-                option_str += option.get_value();
-                if (values.size() > 0) {
-                    option_str += "(";
-                    option_str += impl::as_string(values);
-                    option_str += ")";
-                }
+                // option_str += option.get_value();
+                // if (values.size() > 0) {
+                //     option_str += "(";
+                //     option_str += impl::as_string(values);
+                //     option_str += ")";
+                // }
+                
+                typename ContextT::string_type msg(
+                    impl::as_string<string_type>(it, end));
+
                 BOOST_WAVE_THROW_CTX(ctx, preprocess_exception,
                     ill_formed_pragma_option,
-                    option_str.c_str(), act_token.get_position());
+                    (BOOST_WAVE_PRAGMA_KEYWORD " " + msg).c_str(), act_token.get_position());
+// End Patch
                 return false;
             }
             return true;
@@ -195,9 +201,12 @@ interpret_pragma(ContextT &ctx, typename ContextT::token_type const &act_token,
 #endif
 // Start Patch
         else if ((*it).get_value() != "region" && (*it).get_value() != "endregion") {
+            typename ContextT::string_type msg(
+                    impl::as_string<string_type>(it, end));
+            
             BOOST_WAVE_THROW_CTX(ctx, preprocess_exception,
                 ill_formed_pragma_option,
-                (*it).get_value().c_str(), act_token.get_position());
+                msg.c_str(), act_token.get_position());
         }
 // End Patch
     }
