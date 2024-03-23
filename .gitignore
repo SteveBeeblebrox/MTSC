@@ -1,6 +1,5 @@
 .vscode
 target
-boost
 
 *.js
 *.mjs

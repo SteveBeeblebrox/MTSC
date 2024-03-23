@@ -19,6 +19,7 @@ async fn main() {
     println!("cargo:rerun-if-env-changed=CARGO_PKG_VERSION");
     println!("cargo:rerun-if-changed=src/wave.cpp");
     println!("cargo:rerun-if-changed=src/wave.hpp");
+    println!("cargo:rerun-if-changed=src/patch/");
     println!("cargo:rerun-if-changed=build.rs");
 }
 
@@ -37,6 +38,7 @@ fn compile_wave() {
         .static_flag(true)
         .flag_if_supported("-std=c++11")
         .flag_if_supported("-fno-access-control")
+        .include("src/patch/")
         .compile("cxxbridge-wave");
 
     println!("cargo:rustc-link-lib=static=boost_atomic");
