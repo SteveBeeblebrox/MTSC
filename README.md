@@ -2,3 +2,5 @@
 A standalone TypeScript transpiler with support for JSX, HTML script tags, preprocessing, and minification. MTSC versions correspond to TypeScript. **Note that MTSC only transpiles TypeScript and does not generate any type errors itself. For best results, use with an editor that provides error messages such as Visual Studio Code.**
 
 Run with `--help` for more details.
+
+<!-- Note, currently using boost 1.83 -->
