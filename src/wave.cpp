@@ -16,6 +16,7 @@
 #include <boost/wave/cpplexer/cpp_lex_token.hpp>
 #include <boost/wave/cpplexer/cpp_lex_iterator.hpp>
 #include <boost/regex.hpp>
+#include <boost/lexical_cast.hpp>
 
 #define UFFFF "\uffff"
 #define UFFFE "\ufffe"
@@ -52,15 +53,6 @@ inline std::string as_unescaped_string(ContainerT const &token_sequence) {
     return as_unescaped_string(token_sequence.begin(), token_sequence.end());
 }
 
-// return the string representation of a token sequence
-template <typename String, typename Container>
-inline String
-as_unescaped_string(Container const &token_sequence)
-{
-    return as_unescaped_string<String>(token_sequence.begin(), 
-        token_sequence.end());
-}
-
 template <typename ContextT>
 struct reset_language_support {
     ContextT& ctx_;
@@ -82,10 +74,10 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
         const bool PRESERVE_WHITESPACE;       // enable whitespace preservation
         const bool PRESERVE_BOL_WHITESPACE;   // enable beginning of line whitespace preservation
         message_callback on_message;
-        const boost::wave::util::file_position_type* const P_CURRENT_POSITION;
+        boost::wave::util::file_position_type& current_position;
 
     public:
-        wave_hooks(const bool PRESERVE_WHITESPACE, const bool PRESERVE_BOL_WHITESPACE, message_callback on_message, const boost::wave::util::file_position_type* const P_CURRENT_POSITION) : PRESERVE_WHITESPACE(PRESERVE_WHITESPACE), PRESERVE_BOL_WHITESPACE(PRESERVE_BOL_WHITESPACE), on_message(on_message), P_CURRENT_POSITION(P_CURRENT_POSITION) {}
+        wave_hooks(const bool PRESERVE_WHITESPACE, const bool PRESERVE_BOL_WHITESPACE, message_callback on_message, boost::wave::util::file_position_type& current_position) : PRESERVE_WHITESPACE(PRESERVE_WHITESPACE), PRESERVE_BOL_WHITESPACE(PRESERVE_BOL_WHITESPACE), on_message(on_message), current_position(current_position) {}
 
         template<typename ContextT>
         bool may_skip_whitespace(ContextT const &ctx, TokenT &token, bool &skipped_newline) {
@@ -123,6 +115,55 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                 } catch(...) {
                     return false;
                 }
+            } else if(option.get_value() == "line") {
+                typedef typename ContainerT::const_iterator iterator_type;
+                typedef boost::wave::util::file_position_type position_type;
+                try {
+                    iterator_type it = values.begin();
+                    position_type& pos = ctx.get_main_pos();
+                    int value;
+                    auto get_int_value = [&](iterator_type& it, int& out) {
+                        if(boost::wave::token_id(*it) == boost::wave::T_PP_NUMBER) {
+                            out = boost::lexical_cast<int>(it->get_value().c_str());
+                            return ++it == values.end();
+                        } else {
+                            return false;
+                        }
+                    };
+                    switch(boost::wave::token_id(*it)) {
+                        case boost::wave::T_PLUS: {
+                            if(!get_int_value(++it, value)) {
+                                return false;
+                            }
+                            std::cerr<<"<Shift line forward "<<value<<">"<<std::endl;
+                            // pos.set_line(pos.get_line())
+                            return true;
+                        }
+                        case boost::wave::T_MINUS: {
+                            if(!get_int_value(++it, value)) {
+                                return false;
+                            }
+                            std::cerr<<"<Shift line backward "<<value<<">"<<std::endl;
+                            
+                            return true;
+                        }
+                        case boost::wave::T_PP_NUMBER: {
+                            if(!get_int_value(it, value)) {
+                                return false;
+                            }
+                            std::cerr<<"<Set to absolute "<<value<<">"<<std::endl;
+
+
+                            return true;
+                        }
+                        default: {
+                            return false;
+                        }
+                    }
+                    return true;
+                } catch(...) {
+                    return false;
+                }
             }
 
             return false;
@@ -130,13 +171,13 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
 
         template <typename ContextT, typename ContainerT>
         bool found_warning_directive(ContextT const& ctx, ContainerT const& message) {
-            on_message(MessageType::WARNING, P_CURRENT_POSITION->get_file().c_str(), P_CURRENT_POSITION->get_line(), boost::wave::util::impl::as_string(message).c_str());
+            on_message(MessageType::WARNING, current_position.get_file().c_str(), current_position.get_line(), boost::wave::util::impl::as_string(message).c_str());
             return true;
         }
 
         template <typename ContextT, typename ContainerT>
         bool found_error_directive(ContextT const& ctx, ContainerT const& message) {
-            on_message(MessageType::ERROR, P_CURRENT_POSITION->get_file().c_str(), P_CURRENT_POSITION->get_line(), boost::wave::util::impl::as_string(message).c_str());
+            on_message(MessageType::ERROR, current_position.get_file().c_str(), current_position.get_line(), boost::wave::util::impl::as_string(message).c_str());
             return true;
         }
 };
@@ -240,7 +281,7 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
 
         apply_input_adjustment(text);
 
-        context_type ctx(text.begin(), text.end(), p_filename, wave_hooks<token_type>(true, true, on_message, &current_position));
+        context_type ctx(text.begin(), text.end(), p_filename, wave_hooks<token_type>(true, true, on_message, current_position));
 
         // Configure features
         #define ENABLE(f) ctx.set_language(boost::wave::enable_##f(ctx.get_language()))
