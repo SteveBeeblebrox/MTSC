@@ -79,7 +79,7 @@ fn main() {
         .arg(Arg::with_name("define")
             .short("D")
             .long("define")
-            .value_name("MACROS...")
+            .value_name("MACROS")
             .help("Define macros using the form 'MACRO(x)=definition' (Unused if preprocessor is not enabled)")
             .takes_value(true)
             .multiple(true)
