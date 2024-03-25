@@ -62,11 +62,11 @@ fn main() {
             .takes_value(true)
         )
 
-        .arg(Arg::with_name("input-name")
-            .short("i")
-            .long("input-name")
-            .value_name("INPUT-NAME")
-            .help("Sets the file name for the input when reading from stdin (ignored otherwise)")
+        .arg(Arg::with_name("name")
+            .short("n")
+            .long("name")
+            .value_name("NAME")
+            .help("Sets the file name and extension when not available via the main arg (Such as reading from stdin or file descriptors)")
             .takes_value(true)
         )
 
@@ -150,11 +150,17 @@ fn main() {
                 let mut line = String::new();
 
                 stdin.read_to_string(&mut line).expect("could not read stdin");
-                (match matches.value_of("input-name") { Some(s) => Some(String::from(s)), _=> None }, String::from(line), String::from(""))
+                (
+                    matches.value_of("name").map(|s| String::from(s)), 
+                    String::from(line),
+                    matches.value_of("name").map(|s| Path::new(s).extension().expect("could not get target file extension from name").to_str().unwrap()).unwrap_or("").to_string(), 
+                )
             },
-            Some(value) => (Some(String::from(value)), 
-            fs::read_to_string(value).ok().expect("could not read target file"),
-            Path::new(value).extension().expect("could not get target file extension").to_str().expect("could not get target file extension").to_string())
+            Some(value) => (
+                Some(String::from(value)), 
+                fs::read_to_string(value).ok().expect("could not read target file"),
+                Path::new(value).extension().or(matches.value_of("name").map(|s| Path::new(s).extension()).flatten()).expect("could not get target file extension").to_str().unwrap().to_string()
+            )
         };
 
         // Determine jsx configuration
