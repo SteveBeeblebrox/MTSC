@@ -78,8 +78,6 @@ struct reset_language_support {
     }
 };
 
-void* p_main_iter = nullptr;
-
 template<typename TokenT>
 class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
 {
@@ -349,7 +347,6 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
                     need_to_advance = false;
                 }
                 while (first != last) {
-                    p_main_iter=((void*)&first);
                     iter=&first;
                     current_position = (*first).get_position();
                     out_stream << (*first).get_value();
