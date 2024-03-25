@@ -28,6 +28,7 @@ typedef std::function<void(const MessageType TYPE, std::string filename, const i
 
 typedef boost::wave::cpplexer::lex_token<> token_type;
 typedef boost::wave::cpplexer::lex_iterator<token_type> lex_iterator_type;
+typedef boost::wave::util::file_position_type position_type;
 
 struct adjusted_input_policy;
 
@@ -82,8 +83,8 @@ void* p_main_iter = nullptr;
 template<typename TokenT>
 class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
 {
-    typedef boost::wave::util::file_position_type position_type;
     typedef boost::wave::context_policies::eat_whitespace<TokenT> base_type;
+
     private:
         const bool PRESERVE_WHITESPACE;       // enable whitespace preservation
         const bool PRESERVE_BOL_WHITESPACE;   // enable beginning of line whitespace preservation
@@ -166,9 +167,6 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                             }
 
                             std::cerr<<"<Set to absolute "<<value<<">"<<std::endl;
-
-                            typedef boost::wave::cpplexer::lex_token<> token_type;
-                            typedef boost::wave::cpplexer::lex_iterator<token_type> lex_iterator_type;
 
                             auto f = ((boost::wave::pp_iterator<boost::wave::context<std::string::iterator, lex_iterator_type, typename ContextT::input_policy_type, wave_hooks<typename ContextT::token_type>>>*)p_main_iter)->get_functor().iter_ctx->first;
 
