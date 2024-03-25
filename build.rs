@@ -36,7 +36,7 @@ fn compile_wave() {
         .cpp(true).warnings(false)
         .file("src/wave.cpp")
         .static_flag(true)
-        .flag_if_supported("-std=c++11")
+        .flag_if_supported("-std=c++17")
         .flag_if_supported("-fno-access-control")
         .include("src/patch/")
         .compile("cxxbridge-wave");
