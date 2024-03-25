@@ -130,12 +130,12 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                     return false;
                 }
             } else if(option.get_value() == "line") {
-                typedef typename ContainerT::const_iterator iterator_type;
+                typedef typename ContainerT::const_iterator value_iterator_type;
                 try {
                     int value;
-                    int line = current_position.get_line();
-                    iterator_type value_iter = values.begin();
-                    auto get_int_value = [&](iterator_type& value_iter, int& out) {
+                    int line = iter->get_functor().iter_ctx->first->get_position().get_line();
+                    value_iterator_type value_iter = values.begin();
+                    auto get_int_value = [&](value_iterator_type& value_iter, int& out) {
                         if(boost::wave::token_id(*value_iter) == boost::wave::T_PP_NUMBER) {
                             out = boost::lexical_cast<int>(value_iter->get_value().c_str());
                             return ++value_iter == values.end();
@@ -220,7 +220,7 @@ std::string& apply_input_adjustment(std::string &text, const bool DISCARD_HASHBA
     /////////////////////////////////
 
     replace(boost::regex("^(?=\\s*?#)"), UFFFF "17;");                          // Block normal #...
-    replace(boost::regex("^(\\s*?)\\/\\/\\/(?=\\s*?#)"), "$1" UFFFF "91;\n");   // Split ///#...
+    replace(boost::regex("^(\\s*?)\\/\\/\\/(?=\\s*?#)"), "$1" UFFFF "91;\n#pragma mtsc line(-2)\n");   // Split ///#...
 
     /////////////////////////////////
     replace(boost::regex(UFFFE "0;"), "\\\\\n");                                // Re-escape newlines
