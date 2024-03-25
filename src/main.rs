@@ -85,6 +85,14 @@ fn main() {
             .multiple(true)
         )
 
+        .arg(Arg::with_name("include-paths")
+            .short("I")
+            .value_name("PATH")
+            .help("Add additional include search paths (Unused if preprocessor is not enabled)")
+            .takes_value(true)
+            .multiple(true)
+        )
+
         .arg(Arg::with_name("output")
             .short("o")
             .long("out")
@@ -164,6 +172,11 @@ fn main() {
             Some(values) => values.into_iter().map(|v| String::from(v)).collect::<Vec<String>>(),
             _ => vec![]
         };
+
+        let include_paths: Vec<String> = match matches.values_of("include-paths") {
+            Some(values) => values.into_iter().map(|v| String::from(v)).collect::<Vec<String>>(),
+            _ => vec![]
+        };
         
         let use_preprocessor = matches.occurrences_of("preprocessor") > 0;
 
@@ -188,7 +201,8 @@ fn main() {
 
             use_preprocessor,
             macros,
-            filename: input_file.clone()
+            filename: input_file.clone(),
+            include_paths
         };
 
         let result = if html {

@@ -20,7 +20,7 @@ mod ffi {
     // C++ types exposed to Rust
     unsafe extern "C++" {
         include!("mtsc/src/wave.hpp");
-        fn preprocess_text(text: String, filename: String, macros: Vec<String>) -> String;
+        fn preprocess_text(text: String, filename: String, macros: Vec<String>, include_paths: Vec<String>) -> String;
     }
 }
 
@@ -35,7 +35,6 @@ fn callback(message_type: i32, filename: String, line: i32, message: String) {
     };
 }
 
-// // FIXME: line numbers are wrong with comment preprocessor
-pub fn preprocess_text(text: String, filename: String, macros: Vec<String>) -> Option<String> {
-    return Some(ffi::preprocess_text(text,filename,macros));
+pub fn preprocess_text(text: String, filename: String, macros: Vec<String>, include_paths: Vec<String>) -> Option<String> {
+    return Some(ffi::preprocess_text(text,filename,macros, include_paths));
 }
