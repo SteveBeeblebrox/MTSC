@@ -16,6 +16,7 @@
 #include <boost/wave/cpplexer/cpp_lex_token.hpp>
 #include <boost/wave/cpplexer/cpp_lex_iterator.hpp>
 #include <boost/regex.hpp>
+#include <boost/lexical_cast.hpp>
 
 #define UFFFF "\uffff"
 #define UFFFE "\ufffe"
@@ -24,6 +25,18 @@
 using namespace wave;
 
 typedef std::function<void(const MessageType TYPE, std::string filename, const i32 LINE, const std::string MESSAGE)> message_callback;
+
+typedef boost::wave::cpplexer::lex_token<> token_type;
+typedef boost::wave::cpplexer::lex_iterator<token_type> lex_iterator_type;
+typedef boost::wave::util::file_position_type position_type;
+
+struct adjusted_input_policy;
+
+template<typename TokenT>
+class wave_hooks;
+
+using context_type = boost::wave::context<std::string::iterator, lex_iterator_type, adjusted_input_policy, wave_hooks<token_type>>;
+using iterator_type = boost::wave::pp_iterator<context_type>;
 
 const std::string HASHBANG_PREFIX = "#!";
 
@@ -52,15 +65,6 @@ inline std::string as_unescaped_string(ContainerT const &token_sequence) {
     return as_unescaped_string(token_sequence.begin(), token_sequence.end());
 }
 
-// return the string representation of a token sequence
-template <typename String, typename Container>
-inline String
-as_unescaped_string(Container const &token_sequence)
-{
-    return as_unescaped_string<String>(token_sequence.begin(), 
-        token_sequence.end());
-}
-
 template <typename ContextT>
 struct reset_language_support {
     ContextT& ctx_;
@@ -82,10 +86,11 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
         const bool PRESERVE_WHITESPACE;       // enable whitespace preservation
         const bool PRESERVE_BOL_WHITESPACE;   // enable beginning of line whitespace preservation
         message_callback on_message;
-        const boost::wave::util::file_position_type* const P_CURRENT_POSITION;
+        position_type& current_position;
+        iterator_type*& iter;                 // reference to a pointer to an iterator
 
     public:
-        wave_hooks(const bool PRESERVE_WHITESPACE, const bool PRESERVE_BOL_WHITESPACE, message_callback on_message, const boost::wave::util::file_position_type* const P_CURRENT_POSITION) : PRESERVE_WHITESPACE(PRESERVE_WHITESPACE), PRESERVE_BOL_WHITESPACE(PRESERVE_BOL_WHITESPACE), on_message(on_message), P_CURRENT_POSITION(P_CURRENT_POSITION) {}
+        wave_hooks(const bool PRESERVE_WHITESPACE, const bool PRESERVE_BOL_WHITESPACE, message_callback on_message, position_type& current_position, iterator_type*& iter) : PRESERVE_WHITESPACE(PRESERVE_WHITESPACE), PRESERVE_BOL_WHITESPACE(PRESERVE_BOL_WHITESPACE), on_message(on_message), current_position(current_position), iter(iter) {}
 
         template<typename ContextT>
         bool may_skip_whitespace(ContextT const &ctx, TokenT &token, bool &skipped_newline) {
@@ -98,8 +103,6 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
         template <typename ContextT, typename ContainerT>
         bool interpret_pragma(ContextT& ctx, ContainerT &pending, TokenT const& option, ContainerT const& values, TokenT const& act_token) {
             if(option.get_value() == "eval") {
-                typedef typename ContextT::iterator_type iterator_type;
-                typedef typename ContextT::iter_size_type iter_size_type;
                 try {
                     std::string source = as_unescaped_string(values);
                     reset_language_support<ContextT> lang(ctx);
@@ -123,6 +126,61 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                 } catch(...) {
                     return false;
                 }
+            } else if(option.get_value() == "line") {
+                typedef typename ContainerT::const_iterator value_iterator_type;
+                try {
+                    int value;
+                    int line = iter->get_functor().iter_ctx->first->get_position().get_line();
+                    value_iterator_type value_iter = values.begin();
+                    auto get_int_value = [&](value_iterator_type& value_iter, int& out) {
+                        if(boost::wave::token_id(*value_iter) == boost::wave::T_PP_NUMBER) {
+                            out = boost::lexical_cast<int>(value_iter->get_value().c_str());
+                            return ++value_iter == values.end();
+                        } else {
+                            return false;
+                        }
+                    };
+                    switch(boost::wave::token_id(*value_iter)) {
+                        case boost::wave::T_PLUS: {
+                            if(!get_int_value(++value_iter, value)) {
+                                return false;
+                            }
+
+                            line += value;
+
+                            break;
+                        }
+                        case boost::wave::T_MINUS: {
+                            if(!get_int_value(++value_iter, value)) {
+                                return false;
+                            }
+
+                            line -= value;
+
+                            break;
+                        }
+                        case boost::wave::T_PP_NUMBER: {
+                            if(!get_int_value(value_iter, value)) {
+                                return false;
+                            }
+
+                            line = value;
+
+                            break;
+                        }
+                        default: {
+                            return false;
+                        }
+                    }
+
+                    position_type npos(current_position);
+                    npos.set_line(line);
+                    iter->get_functor().iter_ctx->first.set_position(npos);
+
+                    return true;
+                } catch(...) {
+                    return false;
+                }
             }
 
             return false;
@@ -130,13 +188,13 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
 
         template <typename ContextT, typename ContainerT>
         bool found_warning_directive(ContextT const& ctx, ContainerT const& message) {
-            on_message(MessageType::WARNING, P_CURRENT_POSITION->get_file().c_str(), P_CURRENT_POSITION->get_line(), boost::wave::util::impl::as_string(message).c_str());
+            on_message(MessageType::WARNING, current_position.get_file().c_str(), current_position.get_line(), boost::wave::util::impl::as_string(message).c_str());
             return true;
         }
 
         template <typename ContextT, typename ContainerT>
         bool found_error_directive(ContextT const& ctx, ContainerT const& message) {
-            on_message(MessageType::ERROR, P_CURRENT_POSITION->get_file().c_str(), P_CURRENT_POSITION->get_line(), boost::wave::util::impl::as_string(message).c_str());
+            on_message(MessageType::ERROR, current_position.get_file().c_str(), current_position.get_line(), boost::wave::util::impl::as_string(message).c_str());
             return true;
         }
 };
@@ -159,7 +217,7 @@ std::string& apply_input_adjustment(std::string &text, const bool DISCARD_HASHBA
     /////////////////////////////////
 
     replace(boost::regex("^(?=\\s*?#)"), UFFFF "17;");                          // Block normal #...
-    replace(boost::regex("^(\\s*?)\\/\\/\\/(?=\\s*?#)"), "$1" UFFFF "91;\n");   // Split ///#...
+    replace(boost::regex("^(\\s*?)\\/\\/\\/(?=\\s*?#)"), "$1" UFFFF "91;\n#pragma mtsc line(-2)\n");   // Split ///#...
 
     /////////////////////////////////
     replace(boost::regex(UFFFE "0;"), "\\\\\n");                                // Re-escape newlines
@@ -222,12 +280,6 @@ const char* get_current_exception_name() {
     return abi::__cxa_demangle(abi::__cxa_current_exception_type()->name(), 0, 0, &status);
 }
 
-typedef boost::wave::cpplexer::lex_token<> token_type;
-typedef boost::wave::cpplexer::lex_iterator<token_type> lex_iterator_type;
-
-using context_type = boost::wave::context<std::string::iterator, lex_iterator_type, adjusted_input_policy, wave_hooks<token_type>>;
-using iterator_type = boost::wave::pp_iterator<boost::wave::context<std::string::iterator, lex_iterator_type, adjusted_input_policy, wave_hooks<token_type>>>;
-
 std::string _preprocess_text(std::string text, const char* p_filename, const std::vector<std::string> MACROS, message_callback on_message) {
     boost::wave::util::file_position_type current_position;
 
@@ -240,7 +292,8 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
 
         apply_input_adjustment(text);
 
-        context_type ctx(text.begin(), text.end(), p_filename, wave_hooks<token_type>(true, true, on_message, &current_position));
+        iterator_type* iter;
+        context_type ctx(text.begin(), text.end(), p_filename, wave_hooks<token_type>(true, true, on_message, current_position, iter));
 
         // Configure features
         #define ENABLE(f) ctx.set_language(boost::wave::enable_##f(ctx.get_language()))
@@ -293,6 +346,7 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
                     need_to_advance = false;
                 }
                 while (first != last) {
+                    iter=&first;
                     current_position = (*first).get_position();
                     out_stream << (*first).get_value();
                     ++first;
