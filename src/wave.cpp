@@ -152,24 +152,48 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                                 return false;
                             }
 
+                            std::string source = "#line 221";
+
                             std::cerr<<"<Set to absolute "<<value<<">"<<std::endl;
 
-                            std::string source = "#line 221\n";
-                            reset_language_support<ContextT> lang(ctx);
+                            auto functor = ctx.begin().get_functor();
 
 
-                            ContainerT pragma;
-                            typename ContextT::iterator_type end = ctx.end();
-                            typename ContextT::iterator_type it = ctx.begin(source.begin(), source.end());
+                            typedef typename ContextT::lexer_type lexer_type;
+                            typedef typename ContextT::token_sequence_type      token_sequence_type;
+                            typedef boost::wave::grammars::cpp_grammar_gen<lexer_type, token_sequence_type> cpp_grammar_type;
 
-                            while(it < end && boost::wave::token_id(*it) != boost::wave::T_EOF) {
-                                pragma.push_back(*it);
-                                it++;
-                            }
+                            // parse tree related types
+                            typedef typename cpp_grammar_type::node_factory_type node_factory_type;
+                            typedef boost::spirit::classic::tree_parse_info<lexer_type, node_factory_type>
+                                tree_parse_info_type;
+                            typedef boost::spirit::classic::tree_match<lexer_type, node_factory_type> parse_tree_match_type;
+                            typedef typename parse_tree_match_type::container_t  parse_tree_type;
+                            typedef typename parse_tree_type::const_iterator const_child_iterator_t;
 
-                            it++;
+                            typedef typename boost::wave::impl::pp_iterator_functor<ContextT>::result_type result_type;
 
-                            // pending.splice(pending.begin(), pragma);
+                            typedef typename boost::wave::iteration_context<ContextT, lexer_type>::iterator_type lex_iterator_type;
+
+
+                            lex_iterator_type first(source.begin(), source.end(),  ctx.get_main_pos(), ctx.get_language());
+                            lex_iterator_type last;
+
+
+                            bool found_eof = false;
+                            result_type found_directive;
+                            token_sequence_type found_eoltokens;
+                            position_type act_pos = ctx.get_main_pos();
+                            tree_parse_info_type hit = cpp_grammar_type::parse_cpp_grammar(first, last, act_pos, found_eof, found_directive, found_eoltokens);
+
+
+                            const_child_iterator_t begin = hit.trees.begin();
+                            parse_tree_type const& root = (*begin).children;
+                            const_child_iterator_t begin_child_it = (*root.begin()).children.begin();
+                            const_child_iterator_t end_child_it = (*root.begin()).children.end();
+
+                            functor.on_line(begin_child_it, end_child_it);
+                            std::cerr<<"did it"<<std::endl;
 
                             return true;
                         }
