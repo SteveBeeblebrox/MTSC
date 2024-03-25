@@ -151,8 +151,25 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                             if(!get_int_value(it, value)) {
                                 return false;
                             }
+
                             std::cerr<<"<Set to absolute "<<value<<">"<<std::endl;
 
+                            std::string source = "#line 221\n";
+                            reset_language_support<ContextT> lang(ctx);
+
+
+                            ContainerT pragma;
+                            typename ContextT::iterator_type end = ctx.end();
+                            typename ContextT::iterator_type it = ctx.begin(source.begin(), source.end());
+
+                            while(it < end && boost::wave::token_id(*it) != boost::wave::T_EOF) {
+                                pragma.push_back(*it);
+                                it++;
+                            }
+
+                            it++;
+
+                            // pending.splice(pending.begin(), pragma);
 
                             return true;
                         }
