@@ -82,7 +82,6 @@ template<typename TokenT>
 class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
 {
     typedef boost::wave::context_policies::eat_whitespace<TokenT> base_type;
-
     private:
         const bool PRESERVE_WHITESPACE;       // enable whitespace preservation
         const bool PRESERVE_BOL_WHITESPACE;   // enable beginning of line whitespace preservation
