@@ -90,10 +90,10 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
         const bool PRESERVE_BOL_WHITESPACE;   // enable beginning of line whitespace preservation
         message_callback on_message;
         position_type& current_position;
-        void* iter;
+        iterator_type*& iter;                 // reference to a pointer to an iterator
 
     public:
-        wave_hooks(const bool PRESERVE_WHITESPACE, const bool PRESERVE_BOL_WHITESPACE, message_callback on_message, position_type& current_position/*, IteratorT* iter*/) : PRESERVE_WHITESPACE(PRESERVE_WHITESPACE), PRESERVE_BOL_WHITESPACE(PRESERVE_BOL_WHITESPACE), on_message(on_message), current_position(current_position)/*, iter(iter)*/ {}
+        wave_hooks(const bool PRESERVE_WHITESPACE, const bool PRESERVE_BOL_WHITESPACE, message_callback on_message, position_type& current_position, iterator_type*& iter) : PRESERVE_WHITESPACE(PRESERVE_WHITESPACE), PRESERVE_BOL_WHITESPACE(PRESERVE_BOL_WHITESPACE), on_message(on_message), current_position(current_position), iter(iter) {}
 
         template<typename ContextT>
         bool may_skip_whitespace(ContextT const &ctx, TokenT &token, bool &skipped_newline) {
@@ -106,8 +106,6 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
         template <typename ContextT, typename ContainerT>
         bool interpret_pragma(ContextT& ctx, ContainerT &pending, TokenT const& option, ContainerT const& values, TokenT const& act_token) {
             if(option.get_value() == "eval") {
-                typedef typename ContextT::iterator_type iterator_type;
-                typedef typename ContextT::iter_size_type iter_size_type;
                 try {
                     std::string source = as_unescaped_string(values);
                     reset_language_support<ContextT> lang(ctx);
@@ -134,9 +132,9 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
             } else if(option.get_value() == "line") {
                 typedef typename ContainerT::const_iterator iterator_type;
                 try {
-                    iterator_type value_iter = values.begin();
-                    position_type& pos = ctx.get_main_pos();
                     int value;
+                    int line = current_position.get_line();
+                    iterator_type value_iter = values.begin();
                     auto get_int_value = [&](iterator_type& value_iter, int& out) {
                         if(boost::wave::token_id(*value_iter) == boost::wave::T_PP_NUMBER) {
                             out = boost::lexical_cast<int>(value_iter->get_value().c_str());
@@ -150,36 +148,38 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                             if(!get_int_value(++value_iter, value)) {
                                 return false;
                             }
-                            std::cerr<<"<Shift line forward "<<value<<">"<<std::endl;
-                            return true;
+
+                            line += value;
+
+                            break;
                         }
                         case boost::wave::T_MINUS: {
                             if(!get_int_value(++value_iter, value)) {
                                 return false;
                             }
-                            std::cerr<<"<Shift line backward "<<value<<">"<<std::endl;
-                            
-                            return true;
+
+                            line -= value;
+
+                            break;
                         }
                         case boost::wave::T_PP_NUMBER: {
                             if(!get_int_value(value_iter, value)) {
                                 return false;
                             }
 
-                            std::cerr<<"<Set to absolute "<<value<<">"<<std::endl;
+                            line = value;
 
-                            auto f = ((boost::wave::pp_iterator<boost::wave::context<std::string::iterator, lex_iterator_type, typename ContextT::input_policy_type, wave_hooks<typename ContextT::token_type>>>*)p_main_iter)->get_functor().iter_ctx->first;
-
-                            position_type npos(ctx.get_main_pos());
-                            npos.set_line(217);
-                            f.set_position(npos);
-
-                            return true;
+                            break;
                         }
                         default: {
                             return false;
                         }
                     }
+
+                    position_type npos(current_position);
+                    npos.set_line(line);
+                    iter->get_functor().iter_ctx->first.set_position(npos);
+
                     return true;
                 } catch(...) {
                     return false;
@@ -295,7 +295,8 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
 
         apply_input_adjustment(text);
 
-        context_type ctx(text.begin(), text.end(), p_filename, wave_hooks<token_type>(true, true, on_message, current_position/*, nullptr*/));
+        iterator_type* iter;
+        context_type ctx(text.begin(), text.end(), p_filename, wave_hooks<token_type>(true, true, on_message, current_position, iter));
 
         // Configure features
         #define ENABLE(f) ctx.set_language(boost::wave::enable_##f(ctx.get_language()))
@@ -349,6 +350,7 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
                 }
                 while (first != last) {
                     p_main_iter=((void*)&first);
+                    iter=&first;
                     current_position = (*first).get_position();
                     out_stream << (*first).get_value();
                     ++first;
