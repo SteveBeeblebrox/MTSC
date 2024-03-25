@@ -26,6 +26,17 @@ using namespace wave;
 
 typedef std::function<void(const MessageType TYPE, std::string filename, const i32 LINE, const std::string MESSAGE)> message_callback;
 
+typedef boost::wave::cpplexer::lex_token<> token_type;
+typedef boost::wave::cpplexer::lex_iterator<token_type> lex_iterator_type;
+
+struct adjusted_input_policy;
+
+template<typename TokenT>
+class wave_hooks;
+
+using context_type = boost::wave::context<std::string::iterator, lex_iterator_type, adjusted_input_policy, wave_hooks<token_type>>;
+using iterator_type = boost::wave::pp_iterator<context_type>;
+
 const std::string HASHBANG_PREFIX = "#!";
 
 template <typename IteratorT>
@@ -66,18 +77,22 @@ struct reset_language_support {
     }
 };
 
+void* p_main_iter = nullptr;
+
 template<typename TokenT>
 class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
 {
+    typedef boost::wave::util::file_position_type position_type;
     typedef boost::wave::context_policies::eat_whitespace<TokenT> base_type;
     private:
         const bool PRESERVE_WHITESPACE;       // enable whitespace preservation
         const bool PRESERVE_BOL_WHITESPACE;   // enable beginning of line whitespace preservation
         message_callback on_message;
-        boost::wave::util::file_position_type& current_position;
+        position_type& current_position;
+        void* iter;
 
     public:
-        wave_hooks(const bool PRESERVE_WHITESPACE, const bool PRESERVE_BOL_WHITESPACE, message_callback on_message, boost::wave::util::file_position_type& current_position) : PRESERVE_WHITESPACE(PRESERVE_WHITESPACE), PRESERVE_BOL_WHITESPACE(PRESERVE_BOL_WHITESPACE), on_message(on_message), current_position(current_position) {}
+        wave_hooks(const bool PRESERVE_WHITESPACE, const bool PRESERVE_BOL_WHITESPACE, message_callback on_message, position_type& current_position/*, IteratorT* iter*/) : PRESERVE_WHITESPACE(PRESERVE_WHITESPACE), PRESERVE_BOL_WHITESPACE(PRESERVE_BOL_WHITESPACE), on_message(on_message), current_position(current_position)/*, iter(iter)*/ {}
 
         template<typename ContextT>
         bool may_skip_whitespace(ContextT const &ctx, TokenT &token, bool &skipped_newline) {
@@ -117,30 +132,28 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                 }
             } else if(option.get_value() == "line") {
                 typedef typename ContainerT::const_iterator iterator_type;
-                typedef boost::wave::util::file_position_type position_type;
                 try {
-                    iterator_type it = values.begin();
+                    iterator_type value_iter = values.begin();
                     position_type& pos = ctx.get_main_pos();
                     int value;
-                    auto get_int_value = [&](iterator_type& it, int& out) {
-                        if(boost::wave::token_id(*it) == boost::wave::T_PP_NUMBER) {
-                            out = boost::lexical_cast<int>(it->get_value().c_str());
-                            return ++it == values.end();
+                    auto get_int_value = [&](iterator_type& value_iter, int& out) {
+                        if(boost::wave::token_id(*value_iter) == boost::wave::T_PP_NUMBER) {
+                            out = boost::lexical_cast<int>(value_iter->get_value().c_str());
+                            return ++value_iter == values.end();
                         } else {
                             return false;
                         }
                     };
-                    switch(boost::wave::token_id(*it)) {
+                    switch(boost::wave::token_id(*value_iter)) {
                         case boost::wave::T_PLUS: {
-                            if(!get_int_value(++it, value)) {
+                            if(!get_int_value(++value_iter, value)) {
                                 return false;
                             }
                             std::cerr<<"<Shift line forward "<<value<<">"<<std::endl;
-                            // pos.set_line(pos.get_line())
                             return true;
                         }
                         case boost::wave::T_MINUS: {
-                            if(!get_int_value(++it, value)) {
+                            if(!get_int_value(++value_iter, value)) {
                                 return false;
                             }
                             std::cerr<<"<Shift line backward "<<value<<">"<<std::endl;
@@ -148,52 +161,20 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                             return true;
                         }
                         case boost::wave::T_PP_NUMBER: {
-                            if(!get_int_value(it, value)) {
+                            if(!get_int_value(value_iter, value)) {
                                 return false;
                             }
 
-                            std::string source = "#line 221";
-
                             std::cerr<<"<Set to absolute "<<value<<">"<<std::endl;
 
-                            auto functor = ctx.begin().get_functor();
+                            typedef boost::wave::cpplexer::lex_token<> token_type;
+                            typedef boost::wave::cpplexer::lex_iterator<token_type> lex_iterator_type;
 
+                            auto f = ((boost::wave::pp_iterator<boost::wave::context<std::string::iterator, lex_iterator_type, typename ContextT::input_policy_type, wave_hooks<typename ContextT::token_type>>>*)p_main_iter)->get_functor().iter_ctx->first;
 
-                            typedef typename ContextT::lexer_type lexer_type;
-                            typedef typename ContextT::token_sequence_type      token_sequence_type;
-                            typedef boost::wave::grammars::cpp_grammar_gen<lexer_type, token_sequence_type> cpp_grammar_type;
-
-                            // parse tree related types
-                            typedef typename cpp_grammar_type::node_factory_type node_factory_type;
-                            typedef boost::spirit::classic::tree_parse_info<lexer_type, node_factory_type>
-                                tree_parse_info_type;
-                            typedef boost::spirit::classic::tree_match<lexer_type, node_factory_type> parse_tree_match_type;
-                            typedef typename parse_tree_match_type::container_t  parse_tree_type;
-                            typedef typename parse_tree_type::const_iterator const_child_iterator_t;
-
-                            typedef typename boost::wave::impl::pp_iterator_functor<ContextT>::result_type result_type;
-
-                            typedef typename boost::wave::iteration_context<ContextT, lexer_type>::iterator_type lex_iterator_type;
-
-
-                            lex_iterator_type first(source.begin(), source.end(),  ctx.get_main_pos(), ctx.get_language());
-                            lex_iterator_type last;
-
-
-                            bool found_eof = false;
-                            result_type found_directive;
-                            token_sequence_type found_eoltokens;
-                            position_type act_pos = ctx.get_main_pos();
-                            tree_parse_info_type hit = cpp_grammar_type::parse_cpp_grammar(first, last, act_pos, found_eof, found_directive, found_eoltokens);
-
-
-                            const_child_iterator_t begin = hit.trees.begin();
-                            parse_tree_type const& root = (*begin).children;
-                            const_child_iterator_t begin_child_it = (*root.begin()).children.begin();
-                            const_child_iterator_t end_child_it = (*root.begin()).children.end();
-
-                            functor.on_line(begin_child_it, end_child_it);
-                            std::cerr<<"did it"<<std::endl;
+                            position_type npos(ctx.get_main_pos());
+                            npos.set_line(217);
+                            f.set_position(npos);
 
                             return true;
                         }
@@ -304,12 +285,6 @@ const char* get_current_exception_name() {
     return abi::__cxa_demangle(abi::__cxa_current_exception_type()->name(), 0, 0, &status);
 }
 
-typedef boost::wave::cpplexer::lex_token<> token_type;
-typedef boost::wave::cpplexer::lex_iterator<token_type> lex_iterator_type;
-
-using context_type = boost::wave::context<std::string::iterator, lex_iterator_type, adjusted_input_policy, wave_hooks<token_type>>;
-using iterator_type = boost::wave::pp_iterator<boost::wave::context<std::string::iterator, lex_iterator_type, adjusted_input_policy, wave_hooks<token_type>>>;
-
 std::string _preprocess_text(std::string text, const char* p_filename, const std::vector<std::string> MACROS, message_callback on_message) {
     boost::wave::util::file_position_type current_position;
 
@@ -322,7 +297,7 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
 
         apply_input_adjustment(text);
 
-        context_type ctx(text.begin(), text.end(), p_filename, wave_hooks<token_type>(true, true, on_message, current_position));
+        context_type ctx(text.begin(), text.end(), p_filename, wave_hooks<token_type>(true, true, on_message, current_position/*, nullptr*/));
 
         // Configure features
         #define ENABLE(f) ctx.set_language(boost::wave::enable_##f(ctx.get_language()))
@@ -375,6 +350,7 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
                     need_to_advance = false;
                 }
                 while (first != last) {
+                    p_main_iter=((void*)&first);
                     current_position = (*first).get_position();
                     out_stream << (*first).get_value();
                     ++first;
