@@ -5,6 +5,7 @@
 #include <sstream>
 #include <cstdlib>
 #include <stack>
+#include <filesystem>
 
 // Static wave configuration
 #define BOOST_WAVE_SUPPORT_CPP1Z 1
@@ -280,7 +281,7 @@ const char* get_current_exception_name() {
     return abi::__cxa_demangle(abi::__cxa_current_exception_type()->name(), 0, 0, &status);
 }
 
-std::string _preprocess_text(std::string text, const char* p_filename, const std::vector<std::string> MACROS, message_callback on_message) {
+std::string _preprocess_text(std::string text, const char* p_filename, const std::vector<std::string> MACROS, const std::vector<std::string> INCLUDE_PATHS, message_callback on_message) {
     boost::wave::util::file_position_type current_position;
 
     try {
@@ -310,8 +311,6 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
         DISABLE(convert_trigraphs); // Conflicts with ??=
         DISABLE(emit_pragma_directives);
         DISABLE(insert_whitespace); // Can break regexes like /\n\u{10ffff}\n/gu
-
-        ctx.add_sysinclude_path("."); // #include <...> searches relative to pwd first
         
         // Remove unneeded macros
         #define UNDEFINE(f) ctx.remove_macro_definition(std::string(#f),true)
@@ -333,6 +332,19 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
         // Add custom macros
         for(std::string macro : MACROS) {
             ctx.add_macro_definition(macro, false);
+        }
+
+        // #include <...> prefers cli -I paths and main input folder (if known) over relative paths
+        // #include "..." prefers relative paths over cli -I paths
+
+        // Add custom include paths
+        for(std::string path : INCLUDE_PATHS) {
+            ctx.add_sysinclude_path(path.c_str());
+        }
+
+        if(std::string(p_filename) != "-") {
+            std::string path = std::filesystem::absolute(std::filesystem::path(p_filename)).parent_path().string();
+            ctx.add_sysinclude_path(path.c_str());
         }
 
         iterator_type first = ctx.begin(), last = ctx.end();
@@ -394,15 +406,20 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
 
 #include <algorithm>
 namespace wave {
-    rust::String preprocess_text(rust::String text, rust::String filename, const rust::Vec<rust::String> MACROS) {
+    rust::String preprocess_text(rust::String text, rust::String filename, const rust::Vec<rust::String> MACROS, const rust::Vec<rust::String> INCLUDE_PATHS) {
         message_callback on_message = [](const MessageType TYPE, const std::string FILENAME, const i32 LINE, const std::string MESSAGE) {
            callback((i32)TYPE,FILENAME,LINE,MESSAGE);
         };
         
-        std::vector<std::string> stdv;
-        stdv.reserve(MACROS.size());
-        std::transform(MACROS.begin(), MACROS.end(), std::back_inserter(stdv),[](const rust::String& str) { return std::string(str); });
+        std::vector<std::string> macros;
+        macros.reserve(MACROS.size());
+        std::transform(MACROS.begin(), MACROS.end(), std::back_inserter(macros), [](const rust::String& str) { return std::string(str); });
 
-        return _preprocess_text(std::string(text), filename.c_str(), stdv, on_message);
+        std::vector<std::string> paths;
+        paths.reserve(INCLUDE_PATHS.size());
+        std::transform(INCLUDE_PATHS.begin(), INCLUDE_PATHS.end(), std::back_inserter(paths), [](const rust::String& str) { return std::string(str); });
+
+
+        return _preprocess_text(std::string(text), filename.c_str(), macros, paths, on_message);
     }
 }
