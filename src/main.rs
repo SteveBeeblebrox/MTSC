@@ -82,6 +82,7 @@ fn main() {
             .value_name("MACROS")
             .help("Define macros using the form 'MACRO(x)=definition' (Unused if preprocessor is not enabled)")
             .takes_value(true)
+            .number_of_values(1)
             .multiple(true)
         )
 
@@ -90,6 +91,7 @@ fn main() {
             .value_name("PATH")
             .help("Add additional include search paths (Unused if preprocessor is not enabled)")
             .takes_value(true)
+            .number_of_values(1)
             .multiple(true)
         )
 
