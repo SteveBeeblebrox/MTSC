@@ -19,7 +19,7 @@ static TERSER: &str = include_str!(r"terser.js");
 #[derive(Clone)]
 pub struct CompileOptions {
     pub target: String,
-    pub module: String,
+    pub module: bool,
     pub use_jsx: bool,
     pub jsx_factory: Option<String>,
     pub jsx_fragment: Option<String>,
@@ -33,7 +33,7 @@ pub struct CompileOptions {
 #[derive(Clone)]
 pub struct MinifyOptions {
     pub target: String,
-    pub module: String
+    pub module: bool
 }
 
 impl From<CompileOptions> for MinifyOptions {
@@ -88,7 +88,7 @@ pub fn compile_typescript(text: &str, options: CompileOptions) -> Option<String>
     args.set(scope, target_prop_name, target_prop_value);
 
     let module_prop_name = v8::String::new(scope, "module")?.into();
-    let module_prop_value = v8::String::new(scope, options.module.as_str())?.into();
+    let module_prop_value = v8::String::new(scope, "esnext")?.into();
     args.set(scope, module_prop_name, module_prop_value);
 
     if options.use_jsx {
@@ -217,13 +217,10 @@ impl TokenSink for &mut Document {
                         },
                         EndTag => {
                             if self.typescript_mode != TargetType::None {
-                                self.typescript_mode = TargetType::None;
-                                
                                 let mut options = self.options.clone();
                                 
-                                if self.typescript_mode != TargetType::Module {
-                                    options.module = "none".to_string();
-                                }
+                                options.module = self.typescript_mode == TargetType::Module;
+                                self.typescript_mode = TargetType::None;
 
                                 let script_buffer = self.script_buffer.clone();
                                 
@@ -329,7 +326,7 @@ pub fn minify_javascript(text: &str, options: MinifyOptions) -> Option<String> {
 
     // Global Options
     let module_prop_name = v8::String::new(scope, "module")?.into();
-    let module_prop_value = v8::Boolean::new(scope, options.module != "none").into();
+    let module_prop_value = v8::Boolean::new(scope, options.module).into();
     args.set(scope, module_prop_name, module_prop_value);
 
     // Compress Options

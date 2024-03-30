@@ -38,10 +38,7 @@ fn main() {
         .arg(Arg::with_name("module")
             .short("m")
             .long("module")
-            .value_name("MODULE-VERSION")
-            .help("Sets the module type for compiled code (.mts files and HTML default to esnext; When working with HTML, this option only applies to script tags with type 'tsmodule' or 'module/typescript' and will lead to an error if set to none)")
-            .default_value("none")
-            .takes_value(true)
+            .help("Treat the input as a modern ES module (Enabled by default for .mts files and HTML script tags with type 'tsmodule' or 'module/typescript')")
         )
 
         .arg(Arg::with_name("jsx")
@@ -190,19 +187,7 @@ fn main() {
 
         let options = CompileOptions {
             target: String::from(matches.value_of("target").unwrap()),
-            module: String::from({
-                if html && matches.value_of("module").unwrap() == "none" {
-                    if matches.occurrences_of("module") > 0 {
-                        panic!("HTML mode requires a module type to be set")
-                    } else {
-                        "esnext"
-                    }
-                } else if matches.occurrences_of("module") == 0 && input_type == "mts" {
-                    "esnext"
-                } else {
-                    matches.value_of("module").unwrap()
-                }
-            }),
+            module: matches.occurrences_of("module") > 0 || input_type == "mts",
             use_jsx,
             jsx_factory,
             jsx_fragment,
