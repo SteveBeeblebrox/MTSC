@@ -196,7 +196,7 @@ protected:
         boost::optional<position_type> expanding_pos,
         defined_macros_type *scope = 0, ContainerT *queue_symbol = 0);
 
-    //  Expand a predefined macro (__LINE__, __FILE__ and __INCLUDE_LEVEL__)
+    //  Expand a predefined macro (__LINE__, __FILE__, __INCLUDE_LEVEL__ and __MAIN__)
     template <typename ContainerT>
     bool expand_predefined_macro(token_type const &curr_token,
         ContainerT &expanded);
@@ -490,8 +490,10 @@ macromap<ContextT>::is_defined(typename token_type::string_type const &name,
     if (name.size() < 8 || '_' != name[0] || '_' != name[1])
         return false;       // quick check failed
 
+// Start Patch
     if (name == "__LINE__" || name == "__FILE__" ||
-        name == "__INCLUDE_LEVEL__")
+        name == "__INCLUDE_LEVEL__" || name == "__MAIN__")
+// End Patch
         return true;
 
 #if BOOST_WAVE_SUPPORT_HAS_INCLUDE != 0
@@ -1430,7 +1432,7 @@ macromap<ContextT>::expand_macro(ContainerT &expanded,
     if (it == scope->end()) {
         ++first;    // advance
 
-        // try to expand a predefined macro (__FILE__, __LINE__ or __INCLUDE_LEVEL__)
+        // try to expand a predefined macro (__FILE__, __LINE__, __INCLUDE_LEVEL__ or __MAIN__)
         if (expand_predefined_macro(curr_token, expanded))
             return false;
 
@@ -1651,7 +1653,7 @@ macromap<ContextT>::expand_macro(ContainerT &expanded,
 //
 //  If the token under inspection points to a certain predefined macro it will
 //  be expanded, otherwise false is returned.
-//  (only __FILE__, __LINE__ and __INCLUDE_LEVEL__ macros are expanded here)
+//  (only __FILE__, __LINE__, __INCLUDE_LEVEL__, and __MAIN__ macros are expanded here)
 //
 ///////////////////////////////////////////////////////////////////////////////
 template <typename ContextT>
@@ -1664,7 +1666,7 @@ macromap<ContextT>::expand_predefined_macro(token_type const &curr_token,
 
     string_type const& value = curr_token.get_value();
 
-    if ((value != "__LINE__") && (value != "__FILE__") && (value != "__INCLUDE_LEVEL__"))
+    if ((value != "__LINE__") && (value != "__FILE__") && (value != "__INCLUDE_LEVEL__") && (value != "__MAIN__"))
         return false;
 
     // construct a fake token for the macro's definition point
@@ -1704,6 +1706,13 @@ macromap<ContextT>::expand_predefined_macro(token_type const &curr_token,
         std::string buffer = std::to_string(ctx.get_iteration_depth());
         replacement = token_type(T_INTLIT, buffer.c_str(), curr_token.get_position());
     }
+// Start Patch
+    else if(value == "__MAIN__") {
+        int value = ctx.get_iteration_depth() == 0;
+        std::string buffer = std::to_string(value);
+        replacement = token_type(T_INTLIT, buffer.c_str(), curr_token.get_position());
+    }
+// End Patch
 
     // post-expansion hooks
     ContainerT replacement_list;
