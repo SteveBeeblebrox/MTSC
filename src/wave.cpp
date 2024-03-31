@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <stack>
 #include <filesystem>
+#include <algorithm>
 
 // Static wave configuration
 #define BOOST_WAVE_SUPPORT_CPP1Z 1
@@ -18,6 +19,7 @@
 #include <boost/wave/cpplexer/cpp_lex_iterator.hpp>
 #include <boost/regex.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/format.hpp>
 
 #define UFFFF "\uffff"
 #define UFFFE "\ufffe"
@@ -41,7 +43,12 @@ using iterator_type = boost::wave::pp_iterator<context_type>;
 
 const std::string HASHBANG_PREFIX = "#!";
 
-template <typename IteratorT>
+template<typename T>
+inline std::string as_hex_literal(T t) {
+    return (boost::format("%1$#x") % ((unsigned int)t)).str();
+}
+
+template<typename IteratorT>
 inline std::string as_unescaped_string(IteratorT it, IteratorT const& end) {    
     std::string result;
     while(it != end) {
@@ -61,12 +68,12 @@ inline std::string as_unescaped_string(IteratorT it, IteratorT const& end) {
     return result;
 }
 
-template <typename ContainerT>
+template<typename ContainerT>
 inline std::string as_unescaped_string(ContainerT const &token_sequence) {
     return as_unescaped_string(token_sequence.begin(), token_sequence.end());
 }
 
-template <typename ContextT>
+template<typename ContextT>
 struct reset_language_support {
     ContextT& ctx_;
     boost::wave::language_support lang_;
@@ -101,7 +108,7 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                 !PRESERVE_WHITESPACE : false;
         }
 
-        template <typename ContextT, typename ContainerT>
+        template<typename ContextT, typename ContainerT>
         bool interpret_pragma(ContextT& ctx, ContainerT &pending, TokenT const& option, ContainerT const& values, TokenT const& act_token) {
             if(option.get_value() == "eval") {
                 try {
@@ -187,16 +194,58 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
             return false;
         }
 
-        template <typename ContextT, typename ContainerT>
+        template<typename ContextT, typename ContainerT>
         bool found_warning_directive(ContextT const& ctx, ContainerT const& message) {
             on_message(MessageType::WARNING, current_position.get_file().c_str(), current_position.get_line(), boost::wave::util::impl::as_string(message).c_str());
             return true;
         }
 
-        template <typename ContextT, typename ContainerT>
+        template<typename ContextT, typename ContainerT>
         bool found_error_directive(ContextT const& ctx, ContainerT const& message) {
             on_message(MessageType::ERROR, current_position.get_file().c_str(), current_position.get_line(), boost::wave::util::impl::as_string(message).c_str());
             return true;
+        }
+
+        template<typename ContextT, typename ContainerT>
+        bool found_unknown_directive(ContextT& ctx, ContainerT const& line, ContainerT& pending) {
+            typedef typename ContainerT::const_iterator iterator_type;
+            iterator_type it = line.begin();
+            boost::wave::token_id id = boost::wave::util::impl::skip_whitespace(it, line.end());
+
+            if(id != boost::wave::T_IDENTIFIER) {
+                return false;
+            }
+
+            if((*it).get_value() == "embed") {
+                typename ContextT::position_type pos = it->get_position();
+                unsigned int column = pos.get_column();
+                std::string value = as_unescaped_string(++it,line.end());
+                std::string dir,path;
+                if(!this->locate_include_file(ctx,value,false,NULL,dir,path)) {
+                    return false;
+                }
+
+                std::ifstream stream(path,std::ios::in | std::ios::binary);
+                stream.unsetf(std::ios_base::skipws);
+            
+                std::istream_iterator<char> start(stream);
+                std::istream_iterator<char> end;
+                while(start != end) {
+                    pos.set_column(column);
+                    std::string lit = as_hex_literal(*(start++));
+                    pending.push_back(TokenT(boost::wave::T_HEXAINT, lit.c_str(), pos));
+                    column += (unsigned int) lit.length();
+                    if(start != end) {
+                        pos.set_column(column);
+                        pending.push_back(TokenT(boost::wave::T_COMMA, ",", pos));
+                        column++;
+                    }
+                }
+
+                return true;
+            }
+
+            return false;
         }
 };
 
@@ -404,7 +453,6 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
     return "";
 }
 
-#include <algorithm>
 namespace wave {
     rust::String preprocess_text(rust::String text, rust::String filename, const rust::Vec<rust::String> MACROS, const rust::Vec<rust::String> INCLUDE_PATHS) {
         message_callback on_message = [](const MessageType TYPE, const std::string FILENAME, const i32 LINE, const std::string MESSAGE) {
