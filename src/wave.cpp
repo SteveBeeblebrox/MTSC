@@ -121,12 +121,13 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                     iterator_type end = ctx.end();
                     iterator_type it = ctx.begin(source.begin(), source.end());
 
-                    while(it < end && boost::wave::token_id(*it) != boost::wave::T_EOF) {
+                    std::cerr<<std::boolalpha;
+
+                    while(std::string(boost::wave::get_token_name(boost::wave::token_id(*it)).c_str()) != "<UnknownToken>") {
                         pragma.push_back(*it);
+                        std::cerr<<"::"<<it->get_value()<<"::"<<(it<ctx.end())<<"::"<<(it<=ctx.end())<<"::"<<(it==ctx.end())<<std::endl;
                         it++;
                     }
-
-                    it++;
 
                     pending.splice(pending.begin(), pragma);
                     
@@ -436,6 +437,8 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
         std::string result = out_stream.str();
         apply_output_adjustment(result);
         
+        std::cerr<<"---"<<result<<"---"<<std::endl;
+
         return hashbang + result;
     }
     catch (boost::wave::cpp_exception const& e) {
