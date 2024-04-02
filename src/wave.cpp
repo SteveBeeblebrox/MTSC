@@ -115,13 +115,13 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                     std::string source = as_unescaped_string(values);
                     reset_language_support<ContextT> lang(ctx);
 
-                    ctx.push_iteration_context(ctx.get_main_pos(),iter->get_functor().iter_ctx);
-
-                    ContainerT pragma;
-                    iterator_type end = ctx.end();
-                    iterator_type it = ctx.begin(source.begin(), source.end());
-                    
                     std::cerr<<"Eval: "<<source<<std::endl;
+                    // ctx.push_iteration_context(ctx.get_main_pos(),iter->get_functor().iter_ctx);
+
+                    // ContainerT pragma;
+                    // iterator_type it = ctx.begin(source.begin(), source.end());
+                    // iterator_type end = ctx.end();
+                    
 
                     // pending.push_back(*it);
                     // pending.push_back(*++it);
@@ -134,7 +134,7 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
 
                     // iter->get_functor().iter_ctx = ctx.pop_iteration_context();
 
-                    pending.splice(pending.begin(), pragma);
+                    // pending.splice(pending.begin(), pragma);
                     
                     return true;
                 } catch(boost::wave::cpp_exception const& e) {
