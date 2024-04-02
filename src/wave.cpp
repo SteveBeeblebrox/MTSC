@@ -216,7 +216,7 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
 
             if((*it).get_value() == "embed") {
                 typename ContextT::position_type pos = it->get_position();
-                unsigned int column = pos.get_column();
+                size_t column = pos.get_column();
                 std::string value = as_unescaped_string(++it,line.end());
                 std::string dir,path;
                 if(!this->locate_include_file(ctx,value,false,NULL,dir,path)) {
@@ -226,13 +226,13 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                 std::ifstream stream(path,std::ios::in | std::ios::binary);
                 stream.unsetf(std::ios_base::skipws);
             
-                std::istream_iterator<char> start(stream);
-                std::istream_iterator<char> end;
+                std::istream_iterator<unsigned char> start(stream);
+                std::istream_iterator<unsigned char> end;
                 while(start != end) {
                     pos.set_column(column);
                     std::string lit = as_hex_literal(*(start++));
                     pending.push_back(TokenT(boost::wave::T_HEXAINT, lit.c_str(), pos));
-                    column += (unsigned int) lit.length();
+                    column += (size_t) lit.length();
                     if(start != end) {
                         pos.set_column(column);
                         pending.push_back(TokenT(boost::wave::T_COMMA, ",", pos));
