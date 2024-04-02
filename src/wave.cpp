@@ -118,17 +118,33 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                     ctx.push_iteration_context(ctx.get_main_pos(),iter->get_functor().iter_ctx);
 
                     ContainerT pragma;
-                    iterator_type it = ctx.begin(source.begin(), source.end());
                     iterator_type end = ctx.end();
+                    iterator_type it = ctx.begin(source.begin(), source.end());
                     
-                    while(it != end) {
-                        pragma.push_back(*it);
-                        ++it;
-                    }
+                    std::cerr<<"Eval: "<<source<<std::endl;
+
+                    // pending.push_back(*it);
+                    // pending.push_back(*++it);
+
+                    // while(it != ctx.end() && boost::wave::token_id(*it) != boost::wave::T_EOF) {
+                    //     std::cerr<<"::"<<it->get_value()<<"::"<<boost::wave::get_token_name(boost::wave::token_id(*it))<<std::endl;
+                    //     // pragma.push_back(*it);
+                    //     ++it;
+                    // }
+
+                    // iter->get_functor().iter_ctx = ctx.pop_iteration_context();
 
                     pending.splice(pending.begin(), pragma);
                     
                     return true;
+                } catch(boost::wave::cpp_exception const& e) {
+                    std::cerr<<e.description()<<std::endl;
+                }
+                catch(boost::wave::cpplexer::lexing_exception const& e) {
+                    std::cerr<<e.description()<<std::endl;
+                }
+                catch(std::exception const& e) {
+                    std::cerr<<e.what()<<std::endl;
                 } catch(...) {
                     return false;
                 }
@@ -433,7 +449,7 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
         
         std::string result = out_stream.str();
         apply_output_adjustment(result);
-        
+
         return hashbang + result;
     }
     catch(boost::wave::cpp_exception const& e) {
