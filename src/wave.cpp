@@ -115,18 +115,15 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                     std::string source = as_unescaped_string(values);
                     reset_language_support<ContextT> lang(ctx);
 
-                    ctx.push_iteration_context(ctx.get_main_pos(),ctx.begin().get_functor().iter_ctx);
+                    ctx.push_iteration_context(ctx.get_main_pos(),iter->get_functor().iter_ctx);
 
                     ContainerT pragma;
-                    iterator_type end = ctx.end();
                     iterator_type it = ctx.begin(source.begin(), source.end());
-
-                    std::cerr<<std::boolalpha;
-
-                    while(std::string(boost::wave::get_token_name(boost::wave::token_id(*it)).c_str()) != "<UnknownToken>") {
+                    iterator_type end = ctx.end();
+                    
+                    while(it != end) {
                         pragma.push_back(*it);
-                        std::cerr<<"::"<<it->get_value()<<"::"<<(it<ctx.end())<<"::"<<(it<=ctx.end())<<"::"<<(it==ctx.end())<<std::endl;
-                        it++;
+                        ++it;
                     }
 
                     pending.splice(pending.begin(), pragma);
@@ -299,7 +296,7 @@ struct adjusted_input_policy {
                 typedef typename IterContextT::iterator_type iterator_type;
 
                 boost::filesystem::ifstream instream(iter_ctx.filename.c_str());
-                if (!instream.is_open()) {
+                if(!instream.is_open()) {
                     BOOST_WAVE_THROW_CTX(iter_ctx.ctx, boost::wave::preprocess_exception,
                         bad_include_file, iter_ctx.filename.c_str(), act_pos);
                     return;
@@ -403,19 +400,19 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
         bool need_to_advance = false, finished = false;
         do {
             try {
-                if (need_to_advance) {
+                if(need_to_advance) {
                     ++first;
                     need_to_advance = false;
                 }
-                while (first != last) {
+                while(first != last) {
                     iter=&first;
                     current_position = (*first).get_position();
                     out_stream << (*first).get_value();
                     ++first;
                 }
                 finished = true;
-            } catch (boost::wave::cpp_exception const &e) {
-                if (boost::wave::is_recoverable(e)) {
+            } catch(boost::wave::cpp_exception const &e) {
+                if(boost::wave::is_recoverable(e)) {
                     need_to_advance = true;
                     on_message(MessageType::WARNING, e.file_name(), e.line_no(), e.description());
                 }
@@ -423,8 +420,8 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
                     throw;
                 }
             }
-            catch (boost::wave::cpplexer::lexing_exception const &e) {
-                if (boost::wave::cpplexer::is_recoverable(e)) {
+            catch(boost::wave::cpplexer::lexing_exception const &e) {
+                if(boost::wave::cpplexer::is_recoverable(e)) {
                     need_to_advance = true;
                     on_message(MessageType::WARNING, e.file_name(), e.line_no(), e.description());
                 }
@@ -437,20 +434,18 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
         std::string result = out_stream.str();
         apply_output_adjustment(result);
         
-        std::cerr<<"---"<<result<<"---"<<std::endl;
-
         return hashbang + result;
     }
-    catch (boost::wave::cpp_exception const& e) {
+    catch(boost::wave::cpp_exception const& e) {
         on_message(MessageType::EXCEPTION, e.file_name(), e.line_no(), e.description());
     }
-    catch (boost::wave::cpplexer::lexing_exception const& e) {
+    catch(boost::wave::cpplexer::lexing_exception const& e) {
         on_message(MessageType::EXCEPTION, current_position.get_file().c_str(), current_position.get_line(), e.description());
     }
-    catch (std::exception const& e) {
+    catch(std::exception const& e) {
         on_message(MessageType::EXCEPTION, current_position.get_file().c_str(), current_position.get_line(), e.what());
     }
-    catch (...) {
+    catch(...) {
         on_message(MessageType::EXCEPTION, current_position.get_file().c_str(), current_position.get_line(), std::string("error: unexpected exception caught (") + get_current_exception_name() + ")");
     }
     return "";
