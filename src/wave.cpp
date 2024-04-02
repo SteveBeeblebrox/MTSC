@@ -381,8 +381,6 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
         // __BASE_FILE__
         // __DATE__
         // __TIME__
-        // __STDC__ (required)
-        // __cplusplus (required)
 
         UNDEFINE(__SPIRIT_PP_VERSION_STR__);
         UNDEFINE(__SPIRIT_PP_VERSION__);
