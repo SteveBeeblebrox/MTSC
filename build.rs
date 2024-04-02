@@ -35,6 +35,7 @@ fn compile_wave() {
     cxx_build::bridge("src/wave.rs")
         .cpp(true).warnings(false)
         .file("src/wave.cpp")
+        .define("MTSC_VERSION", format!("\"{}\"",env::var_os("CARGO_PKG_VERSION").unwrap().to_string_lossy()).as_str())
         .static_flag(true)
         .flag_if_supported("-std=c++17")
         .flag_if_supported("-fno-access-control")

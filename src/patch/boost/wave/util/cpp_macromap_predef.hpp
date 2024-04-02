@@ -213,8 +213,8 @@ namespace util {
         static_macros const& static_data_cpp(std::size_t i) const
         {
         static static_macros data[] = {
-                { "__STDC__", T_INTLIT, "1" },
-                { "__cplusplus", T_INTLIT, "199711L" },
+                //PATCH { "__STDC__", T_INTLIT, "1" },
+                //PATCH { "__cplusplus", T_INTLIT, "199711L" },
                 { 0, T_EOF, 0 }
             };
             BOOST_ASSERT(i < sizeof(data)/sizeof(data[0]));
@@ -226,11 +226,11 @@ namespace util {
         static_macros const& static_data_cpp0x(std::size_t i) const
         {
         static static_macros data[] = {
-                { "__STDC__", T_INTLIT, "1" },
-                { "__cplusplus", T_INTLIT, "201103L" },
-                { "__STDC_VERSION__", T_INTLIT, "199901L" },
-                { "__STDC_HOSTED__", T_INTLIT, "0" },
-                { "__WAVE_HAS_VARIADICS__", T_INTLIT, "1" },
+                //PATCH { "__STDC__", T_INTLIT, "1" },
+                //PATCH { "__cplusplus", T_INTLIT, "201103L" },
+                //PATCH { "__STDC_VERSION__", T_INTLIT, "199901L" },
+                //PATCH { "__STDC_HOSTED__", T_INTLIT, "0" },
+                //PATCH { "__WAVE_HAS_VARIADICS__", T_INTLIT, "1" },
                 { 0, T_EOF, 0 }
             };
             BOOST_ASSERT(i < sizeof(data)/sizeof(data[0]));
@@ -243,11 +243,11 @@ namespace util {
         static_macros const& static_data_cpp2a(std::size_t i) const
         {
         static static_macros data[] = {
-                { "__STDC__", T_INTLIT, "1" },
-                { "__cplusplus", T_INTLIT, "202002L" },
-                { "__STDC_VERSION__", T_INTLIT, "199901L" },
-                { "__STDC_HOSTED__", T_INTLIT, "0" },
-                { "__WAVE_HAS_VARIADICS__", T_INTLIT, "1" },
+                //PATCH { "__STDC__", T_INTLIT, "1" },
+                //PATCH { "__cplusplus", T_INTLIT, "202002L" },
+                //PATCH { "__STDC_VERSION__", T_INTLIT, "199901L" },
+                //PATCH { "__STDC_HOSTED__", T_INTLIT, "0" },
+                //PATCH { "__WAVE_HAS_VARIADICS__", T_INTLIT, "1" },
                 { 0, T_EOF, 0 }
             };
             BOOST_ASSERT(i < sizeof(data)/sizeof(data[0]));
@@ -260,10 +260,10 @@ namespace util {
         static_macros const& static_data_c99(std::size_t i) const
         {
         static static_macros data[] = {
-                { "__STDC__", T_INTLIT, "1" },
-                { "__STDC_VERSION__", T_INTLIT, "199901L" },
-                { "__STDC_HOSTED__", T_INTLIT, "0" },
-                { "__WAVE_HAS_VARIADICS__", T_INTLIT, "1" },
+                //PATCH { "__STDC__", T_INTLIT, "1" },
+                //PATCH { "__STDC_VERSION__", T_INTLIT, "199901L" },
+                //PATCH { "__STDC_HOSTED__", T_INTLIT, "0" },
+                //PATCH { "__WAVE_HAS_VARIADICS__", T_INTLIT, "1" },
                 { 0, T_EOF, 0 }
             };
             BOOST_ASSERT(i < sizeof(data)/sizeof(data[0]));
