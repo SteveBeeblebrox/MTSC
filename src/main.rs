@@ -173,6 +173,19 @@ fn main() {
 
         let minify = matches.occurrences_of("minify") > 0 && !html;
 
+        let output_type = match input_type.as_str() {
+            _ if html => "html",
+            "ts" => "js",
+            "tsx" if jsx_factory == None => "jsx",
+            "mts" => "mjs",
+            _ => "js"
+        };
+        let output_type = if minify {
+            format!("min.{}", output_type)
+        } else {
+            String::from(output_type)
+        };
+
         let macros: Vec<String> = match matches.values_of("define") {
             Some(values) => values.into_iter().map(|v| String::from(v)).collect::<Vec<String>>(),
             _ => vec![]
@@ -208,19 +221,6 @@ fn main() {
             minify_javascript(result.as_str(), MinifyOptions::from(options.clone())).expect("error minifying JavaScript")
         } else {
             result
-        };
-
-        let output_type = match input_type.as_str() {
-            _ if html => "html",
-            "ts" => "js",
-            "tsx" => "jsx",
-            "mts" => "mjs",
-            _ => "js"
-        };
-        let output_type = if minify {
-            format!("min.{}", output_type)
-        } else {
-            String::from(output_type)
         };
 
         match matches.value_of("output") {
