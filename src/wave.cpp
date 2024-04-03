@@ -114,7 +114,7 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
 
         template <typename ContextT>
         bool locate_include_file(ContextT& ctx, std::string &file_path, bool is_system, char const *current_name, std::string &dir_path, std::string &native_name) {
-            if(ctx.get_hooks().eval_state.flag && file_path == "<eval>") {
+            if(ctx.get_hooks().eval_state.flag) {
                 native_name = file_path;
                 return true;
             }
@@ -130,10 +130,11 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                     reset_language_support<ContextT> lang(ctx);
 
                     // Note, evaling pragma once stops further evals. Additionally, this may impact include resolving
+                    // Convert - to <stdin> for filename
 
                     eval_state.text = source;
                     eval_state.flag = true;
-                    iter->force_include("<eval>",false);
+                    iter->force_include(ctx.get_current_filename().c_str(),false);
                     
                     return true;
                 } catch(boost::wave::cpp_exception const& e) {
@@ -310,7 +311,7 @@ struct adjusted_input_policy {
             static void init_iterators(IterContextT &iter_ctx, PositionT const &act_pos, boost::wave::language_support language) {
                 typedef typename IterContextT::iterator_type iterator_type;
 
-                if(iter_ctx.ctx.get_hooks().eval_state.flag && iter_ctx.filename == "<eval>") {
+                if(iter_ctx.ctx.get_hooks().eval_state.flag) {
                     // Load from text
                     iter_ctx.ctx.get_hooks().eval_state.flag = false;
                     iter_ctx.instring = std::move(iter_ctx.ctx.get_hooks().eval_state.text);
