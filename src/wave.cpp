@@ -96,7 +96,11 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
         message_callback on_message;
         position_type& current_position;
         iterator_type*& iter;                 // reference to a pointer to an iterator
-
+        
+        struct {
+            bool flag;
+            std::string text;
+        } eval_state;
     public:
         wave_hooks(const bool PRESERVE_WHITESPACE, const bool PRESERVE_BOL_WHITESPACE, message_callback on_message, position_type& current_position, iterator_type*& iter) : PRESERVE_WHITESPACE(PRESERVE_WHITESPACE), PRESERVE_BOL_WHITESPACE(PRESERVE_BOL_WHITESPACE), on_message(on_message), current_position(current_position), iter(iter) {}
 
@@ -108,6 +112,16 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                 !PRESERVE_WHITESPACE : false;
         }
 
+        template <typename ContextT>
+        bool locate_include_file(ContextT& ctx, std::string &file_path, bool is_system, char const *current_name, std::string &dir_path, std::string &native_name) {
+            if(ctx.get_hooks().eval_state.flag && file_path == "<eval>") {
+                native_name = file_path;
+                return true;
+            }
+            
+            return base_type::locate_include_file(ctx,file_path,is_system,current_name,dir_path,native_name);
+        }
+
         template<typename ContextT, typename ContainerT>
         bool interpret_pragma(ContextT& ctx, ContainerT &pending, TokenT const& option, ContainerT const& values, TokenT const& act_token) {
             if(option.get_value() == "eval") {
@@ -115,26 +129,11 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                     std::string source = as_unescaped_string(values);
                     reset_language_support<ContextT> lang(ctx);
 
-                    std::cerr<<"Eval: "<<source<<std::endl;
-                    // ctx.push_iteration_context(ctx.get_main_pos(),iter->get_functor().iter_ctx);
+                    // Note, evaling pragma once stops further evals. Additionally, this may impact include resolving
 
-                    // ContainerT pragma;
-                    // iterator_type it = ctx.begin(source.begin(), source.end());
-                    // iterator_type end = ctx.end();
-                    
-
-                    // pending.push_back(*it);
-                    // pending.push_back(*++it);
-
-                    // while(it != ctx.end() && boost::wave::token_id(*it) != boost::wave::T_EOF) {
-                    //     std::cerr<<"::"<<it->get_value()<<"::"<<boost::wave::get_token_name(boost::wave::token_id(*it))<<std::endl;
-                    //     // pragma.push_back(*it);
-                    //     ++it;
-                    // }
-
-                    // iter->get_functor().iter_ctx = ctx.pop_iteration_context();
-
-                    // pending.splice(pending.begin(), pragma);
+                    eval_state.text = source;
+                    eval_state.flag = true;
+                    iter->force_include("<eval>",false);
                     
                     return true;
                 } catch(boost::wave::cpp_exception const& e) {
@@ -311,17 +310,25 @@ struct adjusted_input_policy {
             static void init_iterators(IterContextT &iter_ctx, PositionT const &act_pos, boost::wave::language_support language) {
                 typedef typename IterContextT::iterator_type iterator_type;
 
-                boost::filesystem::ifstream instream(iter_ctx.filename.c_str());
-                if(!instream.is_open()) {
-                    BOOST_WAVE_THROW_CTX(iter_ctx.ctx, boost::wave::preprocess_exception,
-                        bad_include_file, iter_ctx.filename.c_str(), act_pos);
-                    return;
-                }
-                instream.unsetf(std::ios::skipws);
+                if(iter_ctx.ctx.get_hooks().eval_state.flag && iter_ctx.filename == "<eval>") {
+                    // Load from text
+                    iter_ctx.ctx.get_hooks().eval_state.flag = false;
+                    iter_ctx.instring = std::move(iter_ctx.ctx.get_hooks().eval_state.text);
+                } else {
+                    // Load from file
+                    boost::filesystem::ifstream instream(iter_ctx.filename.c_str());
+                    if(!instream.is_open()) {
+                        BOOST_WAVE_THROW_CTX(iter_ctx.ctx, boost::wave::preprocess_exception,
+                            bad_include_file, iter_ctx.filename.c_str(), act_pos);
+                        return;
+                    }
+                    instream.unsetf(std::ios::skipws);
 
-                iter_ctx.instring.assign(
-                    std::istreambuf_iterator<char>(instream.rdbuf()),
-                    std::istreambuf_iterator<char>());
+                    iter_ctx.instring.assign(
+                        std::istreambuf_iterator<char>(instream.rdbuf()),
+                        std::istreambuf_iterator<char>());
+                }
+
 
                 apply_input_adjustment(iter_ctx.instring, true);
 
