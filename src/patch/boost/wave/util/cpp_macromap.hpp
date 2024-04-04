@@ -490,10 +490,8 @@ macromap<ContextT>::is_defined(typename token_type::string_type const &name,
     if (name.size() < 8 || '_' != name[0] || '_' != name[1])
         return false;       // quick check failed
 
-// Start Patch
     if (name == "__LINE__" || name == "__FILE__" ||
-        name == "__INCLUDE_LEVEL__" || name == "__MAIN__")
-// End Patch
+        name == "__INCLUDE_LEVEL__"/*Start Patch*/ || name == "__MAIN__"/*End Patch*/)
         return true;
 
 #if BOOST_WAVE_SUPPORT_HAS_INCLUDE != 0
@@ -1706,13 +1704,13 @@ macromap<ContextT>::expand_predefined_macro(token_type const &curr_token,
         std::string buffer = std::to_string(ctx.get_iteration_depth());
         replacement = token_type(T_INTLIT, buffer.c_str(), curr_token.get_position());
     }
-// Start Patch
+/*Start Patch*/
     else if(value == "__MAIN__") {
         int value = ctx.get_iteration_depth() == 0;
         std::string buffer = std::to_string(value);
         replacement = token_type(T_INTLIT, buffer.c_str(), curr_token.get_position());
     }
-// End Patch
+/*End Patch*/
 
     // post-expansion hooks
     ContainerT replacement_list;
