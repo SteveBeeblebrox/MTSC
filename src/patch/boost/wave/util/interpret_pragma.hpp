@@ -127,8 +127,8 @@ interpret_pragma(ContextT &ctx, typename ContextT::token_type const &act_token,
             if (!ctx.get_hooks().interpret_pragma(
                   ctx.derived(), pending, option, values, act_token))
             {
-// Start Patch
-                // // unknown #pragma option
+/*Start Patch*/
+                // unknown #pragma option
                 // string_type option_str((*it).get_value());
 
                 // option_str += option.get_value();
@@ -137,6 +137,9 @@ interpret_pragma(ContextT &ctx, typename ContextT::token_type const &act_token,
                 //     option_str += impl::as_string(values);
                 //     option_str += ")";
                 // }
+                // BOOST_WAVE_THROW_CTX(ctx, preprocess_exception,
+                //     ill_formed_pragma_option,
+                //     option_str.c_str(), act_token.get_position());
                 
                 typename ContextT::string_type msg(
                     impl::as_string<string_type>(it, end));
@@ -144,7 +147,7 @@ interpret_pragma(ContextT &ctx, typename ContextT::token_type const &act_token,
                 BOOST_WAVE_THROW_CTX(ctx, preprocess_exception,
                     ill_formed_pragma_option,
                     (BOOST_WAVE_PRAGMA_KEYWORD " " + msg).c_str(), act_token.get_position());
-// End Patch
+/*End Patch*/
                 return false;
             }
             return true;
@@ -199,7 +202,7 @@ interpret_pragma(ContextT &ctx, typename ContextT::token_type const &act_token,
             return false;
         }
 #endif
-// Start Patch
+/*Start Patch*/
         else if ((*it).get_value() != "region" && (*it).get_value() != "endregion") {
             typename ContextT::string_type msg(
                     impl::as_string<string_type>(it, end));
@@ -208,7 +211,7 @@ interpret_pragma(ContextT &ctx, typename ContextT::token_type const &act_token,
                 ill_formed_pragma_option,
                 msg.c_str(), act_token.get_position());
         }
-// End Patch
+/*End Patch*/
     }
     return false;
 }
