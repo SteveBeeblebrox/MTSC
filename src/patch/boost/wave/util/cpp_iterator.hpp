@@ -299,7 +299,7 @@ public:
 protected:
     friend class pp_iterator<ContextT>;
     bool on_include_helper(char const *t, char const *s, bool is_system,
-        bool include_next);
+        bool include_next/*Start Patch*/, bool force_include = false /*End Patch*/);
 
 protected:
     result_type const &get_next_token();
@@ -1565,7 +1565,7 @@ typename string_type::size_type pos_begin =
 template <typename ContextT>
 inline bool
 pp_iterator_functor<ContextT>::on_include_helper(char const* f, char const* s,
-    bool is_system, bool include_next)
+    bool is_system, bool include_next/*Start Patch*/, bool force_include /*End Patch*/)
 {
     namespace fs = boost::filesystem;
 
@@ -1595,7 +1595,7 @@ pp_iterator_functor<ContextT>::on_include_helper(char const* f, char const* s,
 
 // test, if this file is known through a #pragma once directive
 #if BOOST_WAVE_SUPPORT_PRAGMA_ONCE != 0
-    if (!ctx.has_pragma_once(native_path_str))
+    if (!ctx.has_pragma_once(native_path_str)/*Start Patch*/|| force_include /*End Patch*/)
 #endif
     {
         // the new include file determines the actual current directory
@@ -2542,7 +2542,7 @@ public:
     bool force_include(char const *path_, bool is_last)
     {
         bool result = this->get_functor().on_include_helper(path_, path_,
-            false, false);
+            false, false/*Start Patch*/, true /*End Patch*/);
         if (is_last) {
             this->functor_input_type::
                 template inner<input_policy_type>::advance_input();
