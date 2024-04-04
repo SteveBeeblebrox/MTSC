@@ -129,7 +129,7 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                     std::string source = as_unescaped_string(values);
                     reset_language_support<ContextT> lang(ctx);
 
-                    // Note, evaling pragma once stops further evals. Additionally, this may impact include resolving
+                    // Note, evaling pragma once stops further evals.
                     // Convert - to <stdin> for filename
 
                     eval_state.text = source;
