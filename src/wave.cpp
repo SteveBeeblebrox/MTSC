@@ -60,7 +60,11 @@ inline std::string as_unescaped_string(IteratorT it, IteratorT const& end) {
                     result += val;
                 }
                 break;
+            case boost::wave::T_SPACE:
+            case boost::wave::T_NEWLINE:
+                break;
             default:
+                throw std::invalid_argument(std::string("unexpected token ") + boost::wave::get_token_name(boost::wave::token_id(*it)).c_str());
                 break;
         }
         it++;
@@ -137,14 +141,6 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                     iter->force_include(ctx.get_current_filename().c_str(),false);
                     
                     return true;
-                } catch(boost::wave::cpp_exception const& e) {
-                    std::cerr<<e.description()<<std::endl;
-                }
-                catch(boost::wave::cpplexer::lexing_exception const& e) {
-                    std::cerr<<e.description()<<std::endl;
-                }
-                catch(std::exception const& e) {
-                    std::cerr<<e.what()<<std::endl;
                 } catch(...) {
                     return false;
                 }
@@ -231,32 +227,36 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
             }
 
             if((*it).get_value() == "embed") {
-                typename ContextT::position_type pos = it->get_position();
-                size_t column = pos.get_column();
-                std::string value = as_unescaped_string(++it,line.end());
-                std::string dir,path;
-                if(!this->locate_include_file(ctx,value,false,NULL,dir,path)) {
+                try {
+                    typename ContextT::position_type pos = it->get_position();
+                    size_t column = pos.get_column();
+                    std::string value = as_unescaped_string(++it,line.end());
+                    std::string dir,path;
+                    if(!this->locate_include_file(ctx,value,false,NULL,dir,path)) {
+                        return false;
+                    }
+
+                    std::ifstream stream(path,std::ios::in | std::ios::binary);
+                    stream.unsetf(std::ios_base::skipws);
+                
+                    std::istream_iterator<unsigned char> start(stream);
+                    std::istream_iterator<unsigned char> end;
+                    while(start != end) {
+                        pos.set_column(column);
+                        std::string lit = as_hex_literal(*(start++));
+                        pending.push_back(TokenT(boost::wave::T_HEXAINT, lit.c_str(), pos));
+                        column += (size_t) lit.length();
+                        if(start != end) {
+                            pos.set_column(column);
+                            pending.push_back(TokenT(boost::wave::T_COMMA, ",", pos));
+                            column++;
+                        }
+                    }
+
+                    return true;
+                } catch(...) {
                     return false;
                 }
-
-                std::ifstream stream(path,std::ios::in | std::ios::binary);
-                stream.unsetf(std::ios_base::skipws);
-            
-                std::istream_iterator<unsigned char> start(stream);
-                std::istream_iterator<unsigned char> end;
-                while(start != end) {
-                    pos.set_column(column);
-                    std::string lit = as_hex_literal(*(start++));
-                    pending.push_back(TokenT(boost::wave::T_HEXAINT, lit.c_str(), pos));
-                    column += (size_t) lit.length();
-                    if(start != end) {
-                        pos.set_column(column);
-                        pending.push_back(TokenT(boost::wave::T_COMMA, ",", pos));
-                        column++;
-                    }
-                }
-
-                return true;
             }
 
             return false;
