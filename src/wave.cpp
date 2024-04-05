@@ -133,9 +133,6 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                     std::string source = as_unescaped_string(values);
                     reset_language_support<ContextT> lang(ctx);
 
-                    // Note, evaling pragma once stops further evals.
-                    // Convert - to <stdin> for filename
-
                     eval_state.text = source;
                     eval_state.flag = true;
                     iter->force_include(ctx.get_current_filename().c_str(),false);
@@ -413,7 +410,7 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
             ctx.add_sysinclude_path(path.c_str());
         }
 
-        if(std::string(p_filename) != "-") {
+        if(std::string(p_filename) != "<stdin>") {
             std::string path = std::filesystem::absolute(std::filesystem::path(p_filename)).parent_path().string();
             ctx.add_sysinclude_path(path.c_str());
         }

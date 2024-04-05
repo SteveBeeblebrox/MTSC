@@ -50,7 +50,7 @@ static V8_INIT: Once = Once::new();
 #[allow(dead_code)]
 pub fn compile_typescript(text: &str, options: CompileOptions) -> Option<String> {
     let text: String = if options.use_preprocessor {
-        preprocess_text(String::from(text), options.filename.unwrap_or(String::from("-")), options.macros, options.include_paths).expect("error running preprocessor")
+        preprocess_text(String::from(text), options.filename.unwrap_or(String::from("<stdin>")), options.macros, options.include_paths).expect("error running preprocessor")
     } else {
         text.to_string()
     };
