@@ -104,7 +104,7 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
         struct {
             bool flag;
             std::string text;
-        } eval_state;
+        } eval_state = {false, ""};
     public:
         wave_hooks(const bool PRESERVE_WHITESPACE, const bool PRESERVE_BOL_WHITESPACE, message_callback on_message, position_type& current_position, iterator_type*& iter) : PRESERVE_WHITESPACE(PRESERVE_WHITESPACE), PRESERVE_BOL_WHITESPACE(PRESERVE_BOL_WHITESPACE), on_message(on_message), current_position(current_position), iter(iter) {}
 
