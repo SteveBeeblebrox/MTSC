@@ -233,6 +233,8 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                         return false;
                     }
 
+                    ContainerT data;
+
                     std::ifstream stream(path,std::ios::in | std::ios::binary);
                     stream.unsetf(std::ios_base::skipws);
                 
@@ -241,14 +243,16 @@ class wave_hooks : public boost::wave::context_policies::eat_whitespace<TokenT>
                     while(start != end) {
                         pos.set_column(column);
                         std::string lit = as_hex_literal(*(start++));
-                        pending.push_back(TokenT(boost::wave::T_HEXAINT, lit.c_str(), pos));
+                        data.push_back(TokenT(boost::wave::T_HEXAINT, lit.c_str(), pos));
                         column += (size_t) lit.length();
                         if(start != end) {
                             pos.set_column(column);
-                            pending.push_back(TokenT(boost::wave::T_COMMA, ",", pos));
+                            data.push_back(TokenT(boost::wave::T_COMMA, ",", pos));
                             column++;
                         }
                     }
+
+                    pending.splice(pending.begin(), data);
 
                     return true;
                 } catch(...) {
