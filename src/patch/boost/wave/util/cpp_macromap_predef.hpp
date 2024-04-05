@@ -215,6 +215,7 @@ namespace util {
         static static_macros data[] = {
                 // Patch { "__STDC__", T_INTLIT, "1" },
                 // Patch { "__cplusplus", T_INTLIT, "199711L" },
+                /*Start Patch*/ { "__LF__", T_NEWLINE, "\n"}, /*End Patch*/
                 { 0, T_EOF, 0 }
             };
             BOOST_ASSERT(i < sizeof(data)/sizeof(data[0]));
@@ -231,6 +232,7 @@ namespace util {
                 // Patch { "__STDC_VERSION__", T_INTLIT, "199901L" },
                 // Patch { "__STDC_HOSTED__", T_INTLIT, "0" },
                 // Patch { "__WAVE_HAS_VARIADICS__", T_INTLIT, "1" },
+                /*Start Patch*/ { "__LF__", T_NEWLINE, "\n"}, /*End Patch*/
                 { 0, T_EOF, 0 }
             };
             BOOST_ASSERT(i < sizeof(data)/sizeof(data[0]));
@@ -248,6 +250,7 @@ namespace util {
                 // Patch { "__STDC_VERSION__", T_INTLIT, "199901L" },
                 // Patch { "__STDC_HOSTED__", T_INTLIT, "0" },
                 // Patch { "__WAVE_HAS_VARIADICS__", T_INTLIT, "1" },
+                /*Start Patch*/ { "__LF__", T_NEWLINE, "\n"}, /*End Patch*/
                 { 0, T_EOF, 0 }
             };
             BOOST_ASSERT(i < sizeof(data)/sizeof(data[0]));
@@ -264,6 +267,7 @@ namespace util {
                 // Patch { "__STDC_VERSION__", T_INTLIT, "199901L" },
                 // Patch { "__STDC_HOSTED__", T_INTLIT, "0" },
                 // Patch { "__WAVE_HAS_VARIADICS__", T_INTLIT, "1" },
+                /*Start Patch*/ { "__LF__", T_NEWLINE, "\n"}, /*End Patch*/
                 { 0, T_EOF, 0 }
             };
             BOOST_ASSERT(i < sizeof(data)/sizeof(data[0]));
