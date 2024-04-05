@@ -396,6 +396,7 @@ std::string _preprocess_text(std::string text, const char* p_filename, const std
         UNDEFINE(__WAVE__);
 
         ctx.add_macro_definition("__MTSC_VERSION__=\"" MTSC_VERSION "\"", true);
+        ctx.add_macro_definition("__pragma(arg)=_Pragma(#arg)", true);
 
         // Add custom macros
         for(std::string macro : MACROS) {
