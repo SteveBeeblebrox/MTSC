@@ -18,8 +18,8 @@ pub fn compile<T: AsRef<str>>(text: T, options: Options) -> Option<String> {
     cfg_if! {
         if #[cfg(all(feature = "compile", feature = "transpile"))] {
             text = match options.ts {
-                TSMode::COMPILE => features::compile(text,&options)?,
-                TSMode::TRANSPILE => features::transpile(text,&options)?,
+                TSMode::Compile => features::compile(text,&options)?,
+                TSMode::Transpile => features::transpile(text,&options)?,
                 _ => text
             }
         } else if #[cfg(feature = "compile")] {
