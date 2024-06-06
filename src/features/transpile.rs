@@ -5,8 +5,8 @@ use std::convert::TryFrom;
 
 static TYPESCRIPT: &str = include_str!(r"transpile.js");
 
-pub fn transpile(text: String, options: Options) -> Option<String> {
-
+pub fn transpile(text: String, options: &Options) -> Option<String> {
+    
     common::init();
     
     let isolate = &mut v8::Isolate::new(Default::default());
@@ -58,8 +58,8 @@ pub fn transpile(text: String, options: Options) -> Option<String> {
         v8_set!(args.jsx = v8_str!(if options.jsx_factory.is_some() {"react"} else {"preserve"}));
         
         if options.jsx_factory.is_some() {
-            v8_set!(args.jsxFactory = v8_str!(options.jsx_factory.unwrap().as_str()));
-            v8_set!(args.jsxFragmentFactory = v8_str!(options.jsx_fragment.unwrap().as_str()));
+            v8_set!(args.jsxFactory = v8_str!(options.jsx_factory.clone().unwrap().as_str()));
+            v8_set!(args.jsxFragmentFactory = v8_str!(options.jsx_fragment.clone().unwrap().as_str()));
         }
     }
 
