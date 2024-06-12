@@ -3,7 +3,7 @@ use super::common::{self,Options};
 
 use std::convert::TryFrom;
 
-static TERSER: &str = include_str!(r"minify.js");
+static TERSER: &str = include_str!(r"terser.js");
 
 pub fn minify(text: String, options: &Options) -> Option<String> {
 

@@ -1,4 +1,4 @@
-mod compilers;
+/*mod compilers;
 use compilers::{compile_typescript, compile_html, CompileOptions, minify_javascript, MinifyOptions};
 
 mod wave;
@@ -17,9 +17,23 @@ use std::io::Read;
 use std::io;
 use std::panic;
 
-use std::process::exit;
+use std::process::exit;*/
+
+use mtsc;
 
 fn main() {
+    let result = mtsc::compile(r#"
+        ///#define strc(x) #x
+        let a: number = 1+1;
+        let x: string = strc(117);
+    "#, mtsc::Options {
+        preprocess: true,
+        transpile: true,
+        minify: true,
+        ..Default::default()
+    }).unwrap();
+    println!("{}",result);
+    /*
     let matches = App::new("MTSC")
         .version(clap::crate_version!())
         .version_short("v")
@@ -250,4 +264,6 @@ fn main() {
                 file.write_all(result.as_bytes()).expect("could not write to output file");
             }
         }
+
+        */
 }

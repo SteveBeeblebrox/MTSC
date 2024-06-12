@@ -6,7 +6,7 @@
 typedef int32_t i32;
 
 #include "rust/cxx.h"
-#include "mtsc/src/wave.rs.h"
+#include "mtsc/src/features/preprocess/wave.rs.h"
 
 namespace wave {
 

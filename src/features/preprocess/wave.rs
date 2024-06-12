@@ -19,7 +19,7 @@ mod ffi {
 
     // C++ types exposed to Rust
     unsafe extern "C++" {
-        include!("mtsc/src/wave.hpp");
+        include!("mtsc/src/features/preprocess/wave.hpp");
         fn preprocess_text(text: String, filename: String, macros: Vec<String>, include_paths: Vec<String>) -> String;
     }
 }

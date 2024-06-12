@@ -34,3 +34,5 @@ pub use preprocess::preprocess;
 compile_error!("feature \"html\" requires feature \"compile\" and/or feature \"transpile\" to be enabled");
 #[cfg(feature = "html")]
 mod html;
+#[cfg(feature = "html")]
+pub use html::html;

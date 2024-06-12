@@ -3,7 +3,7 @@ use super::common::{self,Options};
 
 use std::convert::TryFrom;
 
-static TYPESCRIPT: &str = include_str!(r"transpile.js");
+static TYPESCRIPT: &str = include_str!(r"typescript.js");
 
 pub fn transpile(text: String, options: &Options) -> Option<String> {
     
