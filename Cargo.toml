@@ -30,7 +30,6 @@ strip = "debuginfo"
 
 [features]
 default=["preprocess","transpile","minify","html"]
-# default=["transpile","minify","preprocess","html"]
 full=["transpile","compile","preprocess","minify","html"]
 
 common=["dep:v8"]
