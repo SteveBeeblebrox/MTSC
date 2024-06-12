@@ -4,3 +4,9 @@ A standalone TypeScript transpiler with support for JSX, HTML script tags, prepr
 Run with `--help` for more details.
 
 <!-- Note, currently using boost 1.83 -->
+<!-- 
+
+WARNING html && (compile || preprocess) is undefined behavior for now
+compile feature is nyi
+
+-->

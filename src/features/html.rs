@@ -5,7 +5,7 @@ use html5ever::tokenizer::{
     ParseError, Token, TokenSink, TokenSinkResult, Tokenizer, TokenizerOpts, BufferQueue, Tag
 };
 
-use common::Options;
+use super::common::Options;
 
 #[derive(PartialEq)]
 enum TargetType {
@@ -13,7 +13,7 @@ enum TargetType {
 }
 
 struct Document {
-    options: CompileOptions,
+    options: &Options,
     typescript_mode: TargetType,
     inner_html: String,
     script_buffer: String
@@ -27,7 +27,7 @@ impl Document {
             self.script_buffer.push_str(html.as_ref());
         }
     }
-    fn new(options: CompileOptions) -> Self {
+    fn new(options: &Options) -> Self {
         Document {
             options,
             typescript_mode: TargetType::None,

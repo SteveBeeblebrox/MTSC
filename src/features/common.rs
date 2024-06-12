@@ -15,12 +15,12 @@ pub fn init() {
 }
 
 #[cfg(all(feature = "transpile", feature = "compile"))]
-#[derive(Default)]
+#[derive(Default,PartialEq,PartialOrd)]
 pub enum TSMode {
+    #[default]
+    Preserve,
     Transpile,
     Compile,
-    #[default]
-    Preserve
 }
 
 #[derive(Clone,Default)]

@@ -35,4 +35,4 @@ compile_error!("feature \"html\" requires feature \"compile\" and/or feature \"t
 #[cfg(feature = "html")]
 mod html;
 #[cfg(feature = "html")]
-pub use html::html;
+pub use html::compile_html;

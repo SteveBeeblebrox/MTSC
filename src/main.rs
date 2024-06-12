@@ -26,7 +26,7 @@ fn main() {
         ///#define strc(x) #x
         let a: number = 1+1;
         let x: string = strc(117);
-    "#, mtsc::Options {
+    "#, &mtsc::Options {
         preprocess: true,
         transpile: true,
         minify: true,
