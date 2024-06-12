@@ -9,4 +9,6 @@ Run with `--help` for more details.
 WARNING html && (compile || preprocess) is undefined behavior for now
 compile feature is nyi
 
+todo, error callback within options
+
 -->

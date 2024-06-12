@@ -12,14 +12,14 @@ enum TargetType {
     None, Classic, Module
 }
 
-struct Document {
-    options: &Options,
+struct Document<'a> {
+    options: &'a Options,
     typescript_mode: TargetType,
     inner_html: String,
     script_buffer: String
 }
 
-impl Document {
+impl<'a> Document<'a> {
     fn write_text<S: AsRef<str>>(&mut self, html: S) {
         if self.typescript_mode == TargetType::None {
             self.inner_html.push_str(html.as_ref());
@@ -27,7 +27,7 @@ impl Document {
             self.script_buffer.push_str(html.as_ref());
         }
     }
-    fn new(options: &Options) -> Self {
+    fn new(options: &'a Options) -> Self {
         Document {
             options,
             typescript_mode: TargetType::None,
@@ -37,7 +37,7 @@ impl Document {
     }
 }
 
-impl TokenSink for &mut Document {
+impl<'a> TokenSink for &mut Document<'a> {
     type Handle = ();
     fn adjusted_current_node_present_but_not_in_html_namespace(&self) -> bool {
         true
@@ -137,13 +137,19 @@ impl TokenSink for &mut Document {
                                     }
                                 }
 
-                                self.write_text(format!("\n{}",
-                                    compile_typescript(
-                                            &script_buffer.lines().map(|line| line.strip_prefix(indentation.as_str()).unwrap_or(line).to_string()).collect::<Vec<String>>().join("\n"),
-                                            options
-                                        ).expect("error compiling TypeScript within HTML")
+                                let mut text = crate::compile_script(
+                                        &script_buffer.lines().map(|line| line.strip_prefix(indentation.as_str()).unwrap_or(line).to_string()).collect::<Vec<String>>().join("\n"),
+                                        &options
+                                    ).expect("error compiling TypeScript within HTML")
                                     .lines().map(|line| format!("{}{}", indentation, line)).collect::<Vec<String>>().join("\n")
-                                ));
+                                ;
+
+                                #[cfg(feature = "minify")]
+                                if options.minify {
+                                    text = super::minify(text,&options).expect("error minifying within HTML");
+                                }
+
+                                self.write_text(format!("\n{}",text));
                                 
                                 let last = script_buffer.lines().last().unwrap_or("");
                                 if last.chars().all(|char| char.is_whitespace()) {

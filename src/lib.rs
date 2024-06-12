@@ -33,11 +33,6 @@ pub fn compile_script<T: AsRef<str>>(text: T, options: &Options) -> Option<Strin
         }
     }
 
-    #[cfg(feature = "minify")]
-    if options.minify {
-        text = features::minify(text,&options)?;
-    }
-
     return Some(text);
 }
 
@@ -47,5 +42,12 @@ pub fn compile<T: AsRef<str>>(text: T, options: &Options) -> Option<String> {
         return features::compile_html(String::from(text.as_ref()), options);
     }
     
-    return compile_script(text,options);
+    let text = compile_script(text,options)?;
+
+    #[cfg(feature = "minify")]
+    if options.minify {
+        return features::minify(text,&options);
+    }
+
+    return Some(text);
 }
