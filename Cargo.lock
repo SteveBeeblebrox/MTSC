@@ -676,6 +676,7 @@ dependencies = [
  "cxx-build",
  "fancy-default",
  "html5ever",
+ "or_panic",
  "panic-message",
  "reqwest",
  "tokio",
@@ -763,6 +764,11 @@ dependencies = [
  "pkg-config",
  "vcpkg",
 ]
+
+[[package]]
+name = "or_panic"
+version = "1.0.0"
+source = "git+https://github.com/SteveBeeblebrox/or_panic.git#7be145a16b0206e43964b0230275f3951123b278"
 
 [[package]]
 name = "panic-message"

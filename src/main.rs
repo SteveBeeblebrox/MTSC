@@ -3,9 +3,8 @@ use compilers::{compile_typescript, compile_html, CompileOptions, minify_javascr
 
 mod wave;
 
-use clap::{Arg, App};
-
-use backtrace::Backtrace;
+*/
+#![allow(unused_imports)]
 
 use std::io::prelude::*;
 use std::path::PathBuf;
@@ -17,23 +16,17 @@ use std::io::Read;
 use std::io;
 use std::panic;
 
-use std::process::exit;*/
 
-use mtsc;
+use clap::{Arg, App};
+use std::process::exit;
+use backtrace::Backtrace;
+
+use mtsc::{compile,Options};
+
+use or_panic::OrPanic as _;
 
 fn main() {
-    let result = mtsc::compile(r#"
-        ///#define strc(x) #x
-        let a: number = 1+1;
-        let x: string = strc(117);
-    "#, &mtsc::Options {
-        preprocess: true,
-        transpile: true,
-        minify: true,
-        ..Default::default()
-    }).unwrap();
-    println!("{}",result);
-    /*
+    // CLI options
     let matches = App::new("MTSC")
         .version(clap::crate_version!())
         .version_short("v")
@@ -77,11 +70,17 @@ fn main() {
             .short("n")
             .long("name")
             .value_name("NAME")
-            .help("Sets the file name and extension when not available via the main arg (Such as reading from stdin or file descriptors)")
+            .help("Sets the file name and extension when not available via the main arg (Such as reading from stdin or file descriptors; this can be used by the preprocessor and to infer other options)")
             .takes_value(true)
         )
 
-        .arg(Arg::with_name("preprocessor")
+        // .arg(Arg::with_name("preserve")
+        //     .short("I")
+        //     .long("preserve")
+        //     .help("Do not transpile input")
+        // )
+        
+        .arg(Arg::with_name("preprocess")
             .short("p")
             .long("preprocessor")
             .help("Enables comment preprocessor (looks for directives within single-line triple-slash comments, e.g. '///#define')")
@@ -140,10 +139,29 @@ fn main() {
         )
         .get_matches();
 
-        let verbose = matches.occurrences_of("verbose") > 0;
-        if cfg!(not(debug_assertions)) {
-
+        macro_rules! cflag {
+            ($expression:expr) => {
+                (matches.occurrences_of($expression) > 0)
+            }
         }
+
+        macro_rules! carg {
+            ($expression:expr) => {
+                matches.value_of($expression)
+            }
+        }
+
+        macro_rules! cstrings {
+            ($expression:expr) => {
+                match matches.values_of($expression) {
+                    Some(values) => values.into_iter().map(|v| String::from(v)).collect::<Vec<String>>(),
+                    _ => vec![]
+                }
+            }
+        }
+
+        // Error handling
+        let verbose = cflag!("verbose");
         panic::set_hook(Box::new(move |info| {
             eprintln!("\x1b[91;1merror\x1b[0m: {}", panic_message::panic_info_message(info));
             
@@ -155,38 +173,75 @@ fn main() {
             exit(1);
         }));
 
-        // Determine input file (or stdin)
-        let (input_file, input_text, input_type) = match matches.value_of("INPUT") {
+        // Read input
+        let maybe_filename: Option<String> = carg!("INPUT").filter(|v| *v != "-").or_else(|| carg!("name")).map(|v| String::from(v));
+        let maybe_ext: Option<String> = maybe_filename.as_ref().and_then(|v|
+            Path::new(v.as_str()).extension().map(|s| String::from(s.to_str().expect("could not get extension from path")))
+        );
+
+        let text = match carg!("INPUT") {
             Some("-") | None => {
                 let stdin = io::stdin();
                 let mut stdin = stdin.lock();
                 let mut line = String::new();
-
-                stdin.read_to_string(&mut line).expect("could not read stdin");
-                (
-                    matches.value_of("name").map(|s| String::from(s)), 
-                    String::from(line),
-                    matches.value_of("name").map(|s| Path::new(s).extension().expect("could not get target file extension from name").to_str().unwrap()).unwrap_or("").to_string(), 
-                )
+                stdin.read_to_string(&mut line).or_panic();
+                String::from(line)
             },
-            Some(value) => (
-                Some(String::from(value)), 
-                fs::read_to_string(value).ok().expect("could not read target file"),
-                Path::new(value).extension().or(matches.value_of("name").map(|s| Path::new(s).extension()).flatten()).expect("could not get target file extension").to_str().unwrap().to_string()
-            )
+            Some(value) => {
+                fs::read_to_string(value).or_panic()
+            }
         };
 
-        // Determine jsx configuration
-        let (use_jsx, jsx_factory, jsx_fragment) = match matches.value_of("jsx") {
-            Some("") if matches.occurrences_of("jsx") > 0 => (if matches.occurrences_of("jsx") > 0 {true} else {false}, None, None),
-            None | Some("") => (input_type == "tsx", None, None),
-            Some(value) => (true, Some(String::from(value)), Some(String::from(matches.value_of("jsx-fragment").unwrap()))),
+        let mut options = Options {
+            target: String::from(carg!("target").unwrap()),
+            module: cflag!("module"),
+            transpile: false,
+
+            use_jsx: cflag!("jsx"),
+            jsx_factory: carg!("jsx").filter(|s| *s != "").map(|s| String::from(s)),
+            jsx_fragment: if carg!("jsx").is_some_and(|s| s != "") {carg!("jsx-factory").map(|s| String::from(s))} else {None},
+            
+            minify: cflag!("minify"),
+            html: cflag!("html"),
+
+            preprocess: cflag!("preprocess"),
+            macros: cstrings!("define"),
+            filename: maybe_filename.clone(),
+            include_paths: cstrings!("include-paths"),
         };
 
-        let html = matches.occurrences_of("html") > 0;
+        if let Some(ext) = maybe_ext {
+            mtsc::util::update_options_by_ext(ext, &mut options, &Options {
+                transpile: true,// !cflag!("preserve"),
+                ..mtsc::util::all_ext_options()
+            });
+        }
 
-        let minify = matches.occurrences_of("minify") > 0 && !html;
+        // Compile
+        let result = compile(text, &options).unwrap();
 
+        println!("{}",result);
+        
+        // Print result
+        match carg!("output") {
+            Some("-") | Some("") if cflag!("output") => print!("{}",result),
+            None | Some("") => {
+                match maybe_filename {
+                    Some(filename) => {
+                        let mut path = PathBuf::from(filename);
+                        path.set_extension("js"); // TODO
+                        fs::write(path,result.as_bytes()).or_panic();
+                    },
+                    None => print!("{}",result)
+                }
+            },
+            Some(value) => {
+                // write to value
+                // if value is dir, use input filename
+            }
+        }
+
+/*
         let output_type = match input_type.as_str() {
             _ if html => "html",
             "ts" => "js",
@@ -198,43 +253,6 @@ fn main() {
             format!("min.{}", output_type)
         } else {
             String::from(output_type)
-        };
-
-        let macros: Vec<String> = match matches.values_of("define") {
-            Some(values) => values.into_iter().map(|v| String::from(v)).collect::<Vec<String>>(),
-            _ => vec![]
-        };
-
-        let include_paths: Vec<String> = match matches.values_of("include-paths") {
-            Some(values) => values.into_iter().map(|v| String::from(v)).collect::<Vec<String>>(),
-            _ => vec![]
-        };
-        
-        let use_preprocessor = matches.occurrences_of("preprocessor") > 0;
-
-        let options = CompileOptions {
-            target: String::from(matches.value_of("target").unwrap()),
-            module: matches.occurrences_of("module") > 0 || input_type == "mts",
-            use_jsx,
-            jsx_factory,
-            jsx_fragment,
-
-            use_preprocessor,
-            macros,
-            filename: input_file.clone(),
-            include_paths
-        };
-
-        let result = if html {
-            compile_html(input_text.as_str(), options.clone()).expect("error compiling HTML")
-        } else {
-            compile_typescript(input_text.as_str(), options.clone()).expect("error compiling TypeScript")
-        };
-
-        let result = if minify {
-            minify_javascript(result.as_str(), MinifyOptions::from(options.clone())).expect("error minifying JavaScript")
-        } else {
-            result
         };
 
         match matches.value_of("output") {

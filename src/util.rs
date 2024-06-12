@@ -4,6 +4,29 @@ use crate::Options;
 #[cfg(all(feature = "compile", feature = "transpile"))]
 pub use crate::TSMode;
 
+
+pub fn all_ext_options() -> Options {
+    Options {
+        #[cfg(all(feature = "transpile", feature = "compile"))]
+        ts: TSMode::Transpile,
+        #[cfg(all(not(feature = "transpile"), feature = "compile"))]
+        compile: true,
+        #[cfg(all(feature = "transpile", not(feature = "compile")))]
+        transpile: true,
+
+        #[cfg(any(feature = "transpile", feature = "compile"))]
+        use_jsx: true,
+
+        #[cfg(feature = "common")]
+        module: true,
+
+        #[cfg(feature = "html")]
+        html: true,
+
+        ..Default::default()
+    }
+}
+
 /*
 O U | R
 -------
@@ -19,7 +42,7 @@ c p | c
 c t | c
 c c | c
 */
-pub fn set_ext_options<'a, 'b>(ext: String, options: &'a mut Options, update_options: &'b Options) -> &'a mut Options {
+pub fn update_options_by_ext<'a, 'b>(ext: String, options: &'a mut Options, update_options: &'b Options) -> &'a mut Options {
     let ext = ext.as_str();
     match ext {
         #[cfg(feature = "html")]
