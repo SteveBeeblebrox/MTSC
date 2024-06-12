@@ -1,14 +1,13 @@
 .vscode
 target
+local
 
 *.js
-*.mjs
-*.jsx
-*.html
+# *.mjs
+# *.jsx
+# *.html
 
-*.ts
-*.mts
-*.tsx
-*.tshtml
-
-!adjustments.ts
+# *.ts
+# *.mts
+# *.tsx
+# *.tshtml
