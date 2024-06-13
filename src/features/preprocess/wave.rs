@@ -1,6 +1,7 @@
 use std::vec::Vec;
 use std::process::exit;
 
+#[allow(unused)]
 pub enum MessageType {
     ERROR = 1,
     WARNING = 2,
