@@ -46,7 +46,18 @@ pub fn update_options_by_ext<'a, 'b>(ext: String, options: &'a mut Options, upda
     let ext = ext.as_str();
     match ext {
         #[cfg(feature = "html")]
-        "html" => options.html |= update_options.html,
+        "html" => {
+            options.html |= update_options.html,
+            cfg_if! {
+                if #[cfg(all(feature = "compile", feature = "transpile"))] {
+                    if update_options.ts > options.ts {
+                        options.ts = TSMode::Transpile;
+                    }
+                } else if #[cfg(feature = "transpile")] {
+                    options.transpile |= update_options.transpile;
+                }
+            }
+        }
 
         #[cfg(feature = "transpile")]
         "jsx" => {
@@ -95,51 +106,49 @@ pub fn update_options_by_ext<'a, 'b>(ext: String, options: &'a mut Options, upda
     return options;
 }
 
+macro_rules! optional {
+    ($expression:expr, $meta:meta) => {
+        {
+            #[cfg($meta)]
+            {Some($expression)}
+            #[cfg(not($meta))]
+            {None}
+        }
+    };
+    (#[cfg($meta:meta)] $expression:expr) => {
+        {
+            #[cfg($meta)]
+            {Some($expression)}
+            #[cfg(not($meta))]
+            {None}
+        }
+    }
+}
+
 pub fn get_result_ext(ext: String, options: &Options) -> String {
     #[cfg(feature = "html")]
     if options.html {
         return String::from("html");
     }
 
-    let ts = ts_enabled(options);
+    let result_ext = if
+                optional!(#[cfg(feature = "compile")] options.compile).unwrap_or_default()
+                || optional!(#[cfg(feature = "transpile")] options.transpile).unwrap_or_default()
+                || optional!(#[cfg(all(feature = "compile", feature = "transpile"))] options.ts != TSMode::Preserve).unwrap_or_default()
+            {
+                match ext.as_str() {
+                    "ts" => "js",
+                    "mts" => "mjs",
+                    
+                    #[cfg(any(feature = "compile", feature = "transpile"))]
+                    "tsx" if options.jsx_factory == None => "jsx",
+                    
+                    _ => "js",
+                }
+            } else {
+                ext.as_str()
+            }
+        ;
 
-    return
-        String::from(if minify_enabled(options) { "min." } else { "" })
-        + match ext.as_str() {
-            "ts" if ts => "js",
-            "mts" if ts => "mjs",
-            
-            #[cfg(any(feature = "compile", feature = "transpile"))]
-            "tsx" if options.jsx_factory == None && ts => "jsx",
-            
-            _ if ts => "js",
-
-            _ => ext.as_str()
-        };
-}
-
-#[inline(always)]
-fn ts_enabled(options: &Options) -> bool {
-    cfg_if! {
-        if #[cfg(all(feature = "compile", feature = "transpile"))] {
-            options.ts != TSMode::Preserve
-        } else if #[cfg(feature = "compile")] {
-            options.compile
-        } else if #[cfg(feature = "transpile")] {
-            options.transpile 
-        } else {
-            false
-        }
-    }
-}
-
-#[inline(always)]
-fn minify_enabled(options: &Options) -> bool {
-    cfg_if! {
-        if #[cfg(feature = "minify")] {
-            options.minify
-        } else {
-            false
-        }
-    }
+    return String::from(if optional!(#[cfg(feature = "minify")] options.minify).unwrap_or_default() {"min."} else {""}) + result_ext;
 }

@@ -33,7 +33,6 @@ pub struct Options {
 
     // Compile and Transpile Features
     #[cfg(all(feature = "transpile", feature = "compile"))]
-    #[allow(unused)]
     pub ts: TSMode,
     #[cfg(all(not(feature = "transpile"), feature = "compile"))]
     #[default(expr=true)]

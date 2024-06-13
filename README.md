@@ -6,9 +6,7 @@ Run with `--help` for more details.
 <!-- Note, currently using boost 1.83 -->
 <!-- 
 
-WARNING html && (compile || preprocess) is undefined behavior for now
-compile feature is nyi
-
-todo, error callback within options
+Use of html with compile or preprocess is undefined for now!
+todo: error callback within options, cli opt to disable ts (maybe --target ts or --target none), compile feature
 
 -->
