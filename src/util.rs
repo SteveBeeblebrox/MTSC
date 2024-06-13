@@ -47,7 +47,7 @@ pub fn update_options_by_ext<'a, 'b>(ext: String, options: &'a mut Options, upda
     match ext {
         #[cfg(feature = "html")]
         "html" => {
-            options.html |= update_options.html,
+            options.html |= update_options.html;
             cfg_if! {
                 if #[cfg(all(feature = "compile", feature = "transpile"))] {
                     if update_options.ts > options.ts {
