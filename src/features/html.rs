@@ -146,7 +146,7 @@ impl<'a> TokenSink for &mut Document<'a> {
 
                                 #[cfg(feature = "minify")]
                                 if options.minify {
-                                    text = super::minify(text,&options).expect("error minifying within HTML");
+                                    text = super::minify(text,&options).expect("error minifying within HTML").lines().map(|line| format!("{}{}", indentation, line)).collect::<Vec<String>>().join("\n");
                                 }
 
                                 self.write_text(format!("\n{}",text));

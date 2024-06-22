@@ -89,7 +89,7 @@ fn main() {
             .short("o")
             .long("out")
             .value_name("OUTPUT")
-            .help("Sets the output file to write transpiled code to instead of using the input file's name with the extension changed to .js or .html in the case of HTML files (When set to '-' or set but blank, output is written to stdout; if set to a directory and an input file is provided, the output file will be written to the given directory with the extension changed to .js/.html)")
+            .help("Sets the output file to write transpiled code to instead of using the input file's name with the extension updated (When set to '-' or set but blank, output is written to stdout; if set to a directory and an input file is provided, the output file will be written to the given directory with the extension updated)")
             .default_value("")
             .hide_default_value(true)
             .takes_value(true)
@@ -213,7 +213,7 @@ fn main() {
                             path.set_extension(result_ext);
                         }
 
-                        if maybe_filename.is_some() && is_same_file(path.as_path(),maybe_filename.as_ref().unwrap()).or_panic() {
+                        if maybe_filename.is_some() && is_same_file(path.as_path(),maybe_filename.as_ref().unwrap()).unwrap_or(false) {
                             panic!("Output file is the same as the input");
                         }
 
@@ -233,7 +233,7 @@ fn main() {
                     path.set_extension(result_ext);
                 }
 
-                if maybe_filename.is_some() && is_same_file(path.as_path(),maybe_filename.as_ref().unwrap()).or_panic() {
+                if maybe_filename.is_some() && is_same_file(path.as_path(),maybe_filename.as_ref().unwrap()).unwrap_or(false) {
                     panic!("Output file is the same as the input");
                 }
 
