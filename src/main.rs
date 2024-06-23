@@ -1,25 +1,18 @@
-mod compilers;
-use compilers::{compile_typescript, compile_html, CompileOptions, minify_javascript, MinifyOptions};
-
-mod wave;
-
-use clap::{Arg, App};
-
-use backtrace::Backtrace;
-
-use std::io::prelude::*;
-use std::path::PathBuf;
-use std::path::Path;
-use std::fs::File;
+use std::path::{Path, PathBuf};
+use std::io::{self, Read as _};
+use std::process::exit;
+use std::panic;
 use std::fs;
 
-use std::io::Read;
-use std::io;
-use std::panic;
+use clap::{Arg, App};
+use backtrace::Backtrace;
+use same_file::is_same_file;
+use or_panic::OrPanic as _;
 
-use std::process::exit;
+use mtsc::{compile,Options};
 
 fn main() {
+    // CLI options
     let matches = App::new("MTSC")
         .version(clap::crate_version!())
         .version_short("v")
@@ -63,11 +56,11 @@ fn main() {
             .short("n")
             .long("name")
             .value_name("NAME")
-            .help("Sets the file name and extension when not available via the main arg (Such as reading from stdin or file descriptors)")
+            .help("Sets the file name and extension when not available via the main arg (Such as reading from stdin or file descriptors; this can be used by the preprocessor and to infer other options)")
             .takes_value(true)
         )
-
-        .arg(Arg::with_name("preprocessor")
+        
+        .arg(Arg::with_name("preprocess")
             .short("p")
             .long("preprocessor")
             .help("Enables comment preprocessor (looks for directives within single-line triple-slash comments, e.g. '///#define')")
@@ -96,7 +89,7 @@ fn main() {
             .short("o")
             .long("out")
             .value_name("OUTPUT")
-            .help("Sets the output file to write transpiled code to instead of using the input file's name with the extension changed to .js or .html in the case of HTML files (When set to '-' or set but blank, output is written to stdout; if set to a directory and an input file is provided, the output file will be written to the given directory with the extension changed to .js/.html)")
+            .help("Sets the output file to write transpiled code to instead of using the input file's name with the extension updated (When set to '-' or set but blank, output is written to stdout; if set to a directory and an input file is provided, the output file will be written to the given directory with the extension updated)")
             .default_value("")
             .hide_default_value(true)
             .takes_value(true)
@@ -105,13 +98,13 @@ fn main() {
         .arg(Arg::with_name("minify")
             .short("M")
             .long("minify")
-            .help("Enables minification using Terser (both compression and mangling) of output code; except for HTML files, '.min' is prepend to the output file extension (Currently ignored if parsing HTML)")
+            .help("Enables minification using Terser (both compression and mangling) of output code (Except for HTML files, '.min' is prepend to the output file extension)")
         )
 
         .arg(Arg::with_name("html")
             .long("html")
             .short("H")
-            .help("Treat the input as an HTML file and transpile any script tags with the type attribute set to 'text/typescript', 'application/typescript', 'tsmodule', or 'module/typescript'")
+            .help("Treat the input as an HTML file and transpile any script tags with the type attribute set to 'text/typescript', 'application/typescript', 'tsmodule', or 'module/typescript' (Enabled by default for .html files)")
         )
 
         .arg(Arg::with_name("verbose")
@@ -126,10 +119,29 @@ fn main() {
         )
         .get_matches();
 
-        let verbose = matches.occurrences_of("verbose") > 0;
-        if cfg!(not(debug_assertions)) {
-
+        macro_rules! cflag {
+            ($expression:expr) => {
+                (matches.occurrences_of($expression) > 0)
+            }
         }
+
+        macro_rules! carg {
+            ($expression:expr) => {
+                matches.value_of($expression)
+            }
+        }
+
+        macro_rules! cstrings {
+            ($expression:expr) => {
+                match matches.values_of($expression) {
+                    Some(values) => values.into_iter().map(|v| String::from(v)).collect::<Vec<String>>(),
+                    _ => vec![]
+                }
+            }
+        }
+
+        // Error handling
+        let verbose = cflag!("verbose");
         panic::set_hook(Box::new(move |info| {
             eprintln!("\x1b[91;1merror\x1b[0m: {}", panic_message::panic_info_message(info));
             
@@ -141,113 +153,91 @@ fn main() {
             exit(1);
         }));
 
-        // Determine input file (or stdin)
-        let (input_file, input_text, input_type) = match matches.value_of("INPUT") {
+        // Read input
+        let maybe_filename: Option<String> = carg!("INPUT").filter(|v| *v != "-").or_else(|| carg!("name")).map(|v| String::from(v));
+        let maybe_ext: Option<String> = maybe_filename.as_ref().and_then(|v|
+            Path::new(v.as_str()).extension().map(|s| String::from(s.to_str().expect("could not get extension from path")))
+        );
+
+        let text = match carg!("INPUT") {
             Some("-") | None => {
                 let stdin = io::stdin();
                 let mut stdin = stdin.lock();
                 let mut line = String::new();
-
-                stdin.read_to_string(&mut line).expect("could not read stdin");
-                (
-                    matches.value_of("name").map(|s| String::from(s)), 
-                    String::from(line),
-                    matches.value_of("name").map(|s| Path::new(s).extension().expect("could not get target file extension from name").to_str().unwrap()).unwrap_or("").to_string(), 
-                )
+                stdin.read_to_string(&mut line).or_panic();
+                String::from(line)
             },
-            Some(value) => (
-                Some(String::from(value)), 
-                fs::read_to_string(value).ok().expect("could not read target file"),
-                Path::new(value).extension().or(matches.value_of("name").map(|s| Path::new(s).extension()).flatten()).expect("could not get target file extension").to_str().unwrap().to_string()
-            )
-        };
-
-        // Determine jsx configuration
-        let (use_jsx, jsx_factory, jsx_fragment) = match matches.value_of("jsx") {
-            Some("") if matches.occurrences_of("jsx") > 0 => (if matches.occurrences_of("jsx") > 0 {true} else {false}, None, None),
-            None | Some("") => (input_type == "tsx", None, None),
-            Some(value) => (true, Some(String::from(value)), Some(String::from(matches.value_of("jsx-fragment").unwrap()))),
-        };
-
-        let html = matches.occurrences_of("html") > 0;
-
-        let minify = matches.occurrences_of("minify") > 0 && !html;
-
-        let output_type = match input_type.as_str() {
-            _ if html => "html",
-            "ts" => "js",
-            "tsx" if jsx_factory == None => "jsx",
-            "mts" => "mjs",
-            _ => "js"
-        };
-        let output_type = if minify {
-            format!("min.{}", output_type)
-        } else {
-            String::from(output_type)
-        };
-
-        let macros: Vec<String> = match matches.values_of("define") {
-            Some(values) => values.into_iter().map(|v| String::from(v)).collect::<Vec<String>>(),
-            _ => vec![]
-        };
-
-        let include_paths: Vec<String> = match matches.values_of("include-paths") {
-            Some(values) => values.into_iter().map(|v| String::from(v)).collect::<Vec<String>>(),
-            _ => vec![]
-        };
-        
-        let use_preprocessor = matches.occurrences_of("preprocessor") > 0;
-
-        let options = CompileOptions {
-            target: String::from(matches.value_of("target").unwrap()),
-            module: matches.occurrences_of("module") > 0 || input_type == "mts",
-            use_jsx,
-            jsx_factory,
-            jsx_fragment,
-
-            use_preprocessor,
-            macros,
-            filename: input_file.clone(),
-            include_paths
-        };
-
-        let result = if html {
-            compile_html(input_text.as_str(), options.clone()).expect("error compiling HTML")
-        } else {
-            compile_typescript(input_text.as_str(), options.clone()).expect("error compiling TypeScript")
-        };
-
-        let result = if minify {
-            minify_javascript(result.as_str(), MinifyOptions::from(options.clone())).expect("error minifying JavaScript")
-        } else {
-            result
-        };
-
-        match matches.value_of("output") {
-            Some("-") | Some("") if matches.occurrences_of("output") > 0 => print!("{}", result.as_str()),
-            None | Some("") => {
-                match input_file {
-                    Some(input_file) => {
-                        let mut path = PathBuf::from(input_file);
-                        path.set_extension(output_type.as_str());
-                        let mut file = File::create(path).expect("could not create output file");
-                        file.write_all(result.as_bytes()).expect("could not write to output file");
-                    },
-                    None => print!("{}", result.as_str())
-                }
+            Some(value) => {
+                fs::read_to_string(value).or_panic()
             }
-            Some(path) => {
-                let path = if Path::new(path).exists() && fs::metadata(path).expect("could not reading file metadata").is_dir() && input_file.is_some() {
-                    let mut path = PathBuf::from(path);
-                    path.push(Path::new(&input_file.unwrap().to_string()).file_name().expect("could not get file name").to_str().expect("could not get file name"));
-                    path.set_extension(output_type.as_str());
-                    path
-                } else {
-                    PathBuf::from(path)
-                };
+        };
 
-                let mut file = File::create(path).expect("could not create output file");
-                file.write_all(result.as_bytes()).expect("could not write to output file");
+        let mut options = Options {
+            target: String::from(carg!("target").unwrap()),
+            module: cflag!("module"),
+            transpile: true, // !cflag!("preserve")
+
+            use_jsx: cflag!("jsx"),
+            jsx_factory: carg!("jsx").filter(|s| *s != "").map(|s| String::from(s)),
+            jsx_fragment: if carg!("jsx").is_some_and(|s| s != "") {carg!("jsx-factory").map(|s| String::from(s))} else {None},
+            
+            minify: cflag!("minify"),
+            html: cflag!("html"),
+
+            preprocess: cflag!("preprocess"),
+            macros: cstrings!("define"),
+            filename: maybe_filename.clone(),
+            include_paths: cstrings!("include-paths"),
+        };
+
+        if let Some(ref ext) = maybe_ext {
+            mtsc::util::update_options_by_ext(ext.clone(), &mut options, &Options {
+                transpile: true,// !cflag!("preserve"),
+                ..mtsc::util::all_ext_options()
+            });
+        }
+
+        // Compile
+        let result = compile(text, &options).unwrap();
+        
+        // Write output
+        let maybe_result_ext = maybe_ext.map(|ext| mtsc::util::get_result_ext(ext,&options));
+
+        match carg!("output") {
+            Some("-") | Some("") if cflag!("output") => print!("{}",result),
+            None | Some("") => {
+                match maybe_filename {
+                    Some(ref filename) => {
+                        let mut path = PathBuf::from(filename);
+                        if let Some(result_ext) = maybe_result_ext {
+                            path.set_extension(result_ext);
+                        }
+
+                        if maybe_filename.is_some() && is_same_file(path.as_path(),maybe_filename.as_ref().unwrap()).unwrap_or(false) {
+                            panic!("Output file is the same as the input");
+                        }
+
+                        fs::write(path,result.as_bytes()).or_panic();
+                    },
+                    None => print!("{}",result)
+                }
+            },
+            Some(value) => {
+                let mut path = PathBuf::from(value);
+
+                if path.is_dir() {
+                    path.push(maybe_filename.as_ref().unwrap_or(&String::from("out")));
+                }
+
+                if let Some(result_ext) = maybe_result_ext {
+                    path.set_extension(result_ext);
+                }
+
+                if maybe_filename.is_some() && is_same_file(path.as_path(),maybe_filename.as_ref().unwrap()).unwrap_or(false) {
+                    panic!("Output file is the same as the input");
+                }
+
+                fs::write(path,result.as_bytes()).or_panic();
             }
         }
 }

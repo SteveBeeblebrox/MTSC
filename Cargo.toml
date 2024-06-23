@@ -1,17 +1,23 @@
 [package]
 name = "mtsc"
-version = "5.4.2"
+version = "5.5.2"
 edition = "2018"
 authors = ["Trin Wasinger"] # <you@example.com>
 license = "MIT"
 
 [dependencies]
-v8 = "0.34.0"
-clap = "2.33.3"
-html5ever = "0.26.0"
-panic-message = "0.3.0"
-backtrace = "0.3.64"
-cxx = "1.0"
+cfg-if = "1.0.0"
+fancy-default = "0.1.0"
+or_panic = { git = "https://github.com/SteveBeeblebrox/or_panic.git" }
+
+clap = { version = "2.33.3", optional = true }
+panic-message = { version = "0.3.0", optional = true }
+backtrace = { version = "0.3.64", optional = true }
+same-file = { version = "1.0.6", optional = true }
+
+v8 = { version = "0.92.0", optional = true }
+html5ever = { version = "0.26.0", optional = true }
+cxx = { version = "1.0", optional = true }
 
 [build-dependencies]
 cc = "1.0.82"
@@ -24,3 +30,16 @@ opt-level = "z"
 codegen-units = 1
 lto = true
 strip = "debuginfo"
+
+[features]
+default=["preprocess","transpile","minify","html","cli"]
+full=["transpile","compile","preprocess","minify","html"]
+cli=["dep:clap","dep:panic-message","dep:backtrace","dep:same-file"]
+
+common=["dep:v8"]
+
+compile=["common"]
+transpile=["common"]
+minify=["common"]
+preprocess=["dep:cxx"]
+html=["dep:html5ever"]
