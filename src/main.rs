@@ -98,13 +98,13 @@ fn main() {
         .arg(Arg::with_name("minify")
             .short("M")
             .long("minify")
-            .help("Enables minification using Terser (both compression and mangling) of output code; except for HTML files, '.min' is prepend to the output file extension (Currently ignored if parsing HTML)")
+            .help("Enables minification using Terser (both compression and mangling) of output code (Except for HTML files, '.min' is prepend to the output file extension)")
         )
 
         .arg(Arg::with_name("html")
             .long("html")
             .short("H")
-            .help("Treat the input as an HTML file and transpile any script tags with the type attribute set to 'text/typescript', 'application/typescript', 'tsmodule', or 'module/typescript'")
+            .help("Treat the input as an HTML file and transpile any script tags with the type attribute set to 'text/typescript', 'application/typescript', 'tsmodule', or 'module/typescript' (Enabled by default for .html files)")
         )
 
         .arg(Arg::with_name("verbose")
