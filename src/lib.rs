@@ -51,3 +51,7 @@ pub fn compile<T: AsRef<str>>(text: T, options: &Options) -> Option<String> {
 
     return Some(text);
 }
+
+pub fn version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
+}
