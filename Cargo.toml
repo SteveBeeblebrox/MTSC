@@ -15,7 +15,7 @@ panic-message = { version = "0.3.0", optional = true }
 backtrace = { version = "0.3.64", optional = true }
 same-file = { version = "1.0.6", optional = true }
 
-v8 = { version = "0.92.0", optional = true }
+v8 = { version = "0.94.0", optional = true }
 html5ever = { version = "0.26.0", optional = true }
 cxx = { version = "1.0", optional = true }
 
