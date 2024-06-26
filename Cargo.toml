@@ -43,3 +43,5 @@ transpile=["common"]
 minify=["common"]
 preprocess=["dep:cxx"]
 html=["dep:html5ever"]
+
+external-v8=[]

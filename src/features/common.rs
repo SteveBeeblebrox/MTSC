@@ -2,11 +2,12 @@
 use std::sync::Once;
 use fancy_default::Default;
 
-#[cfg(feature = "common")]
+#[cfg(all(feature = "common", not(feature = "external-v8")))]
 static V8_INIT: Once = Once::new();
 
 #[cfg(feature = "common")]
 pub fn init() {
+    #[cfg(not(feature = "external-v8"))]
     V8_INIT.call_once(|| {
         let platform = v8::new_default_platform(0, false).make_shared();
         v8::V8::initialize_platform(platform);
