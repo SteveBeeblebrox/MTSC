@@ -19,6 +19,8 @@ v8 = { version = "0.94.0", optional = true }
 html5ever = { version = "0.26.0", optional = true }
 cxx = { version = "1.0", optional = true }
 
+serde = { version = "1.0", optional = true }
+
 [build-dependencies]
 cc = "1.0.82"
 reqwest = "0.11.18"
@@ -44,4 +46,5 @@ minify=["common"]
 preprocess=["dep:cxx"]
 html=["dep:html5ever"]
 
+serde=["dep:serde"]
 external-v8=[]

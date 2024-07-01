@@ -680,6 +680,7 @@ dependencies = [
  "panic-message",
  "reqwest",
  "same-file",
+ "serde",
  "tokio",
  "v8",
 ]

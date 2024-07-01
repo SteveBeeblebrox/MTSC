@@ -16,7 +16,7 @@ pub fn init() {
 }
 
 #[cfg(all(feature = "transpile", feature = "compile"))]
-#[derive(Default,PartialEq,PartialOrd)]
+#[derive(Default,Debug,PartialEq,PartialOrd)]
 pub enum TSMode {
     #[default]
     Preserve,
@@ -24,7 +24,8 @@ pub enum TSMode {
     Compile,
 }
 
-#[derive(Clone,Default)]
+#[derive(Clone,Default,Debug,std::hash::Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Options {
     #[cfg(feature = "common")]
     #[default(expr=String::from("es2022"))]
