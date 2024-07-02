@@ -145,17 +145,39 @@ pub fn get_result_ext(ext: String, options: &Options) -> String {
     return String::from(if optional!(#[cfg(feature = "minify")] options.minify).unwrap_or_default() {"min."} else {""}) + result_ext;
 }
 
-
-pub enum OptionSource<'a> {
-    Mime(&'a str),
-    Extension(&'a str),
-    SubExtension(&'a str),
+use std::path::{Path,PathBuf};
+pub enum OptionSource {
+    Mime(String),
+    Extension(String),
+    SubExtension(String),
+    Path(PathBuf),
     None
 }
 
-pub fn update_options<'a, 'b>(source: OptionSource<'a>, options: &'b mut Options, mask: &Options) -> &'b mut Options {
-    use OptionSource::*;
+pub fn update_options<'a>(source: OptionSource, options: &'a mut Options, mask: &'a Options) -> &'a mut Options {
+    if let OptionSource::Path(path) = source {
+        path.file_stem().and_then(|stem| Path::new(stem).extension()).and_then(|ext| ext.to_str()).map(|s| update_options(OptionSource::SubExtension(String::from(s)), options, mask));
+        path.extension().and_then(|ext| ext.to_str()).map(|s| update_options(OptionSource::Extension(String::from(s)), options, mask));
+        
+        return options;
+    }
+    
+    enum DowngradedOptionSource<'b> {
+        Mime(&'b str),
+        Extension(&'b str),
+        SubExtension(&'b str),
+        None
+    }
 
+    let source = match &source {
+        OptionSource::Mime(s) => DowngradedOptionSource::Mime(&s),
+        OptionSource::Extension(s) => DowngradedOptionSource::Extension(&s),
+        OptionSource::SubExtension(s) => DowngradedOptionSource::SubExtension(&s),
+        OptionSource::None => DowngradedOptionSource::None,
+        _ => unreachable!()
+    };
+
+    use DowngradedOptionSource::*;
     match source {
         SubExtension("p") | SubExtension("pre") => {
             optional!(#[cfg(feature="preprocess")] options.preprocess |= mask.preprocess); 
@@ -178,7 +200,7 @@ pub fn update_options<'a, 'b>(source: OptionSource<'a>, options: &'b mut Options
         },
         Extension("mts") => {
             optional!(#[cfg(feature="common")] options.module |= mask.module);
-            update_options(Extension("ts"),options,mask);
+            update_options(OptionSource::Extension(String::from("ts")),options,mask);
         },
         Extension("mjs") => {
             optional!(#[cfg(feature="common")] options.module |= mask.module);
@@ -188,7 +210,7 @@ pub fn update_options<'a, 'b>(source: OptionSource<'a>, options: &'b mut Options
         },
         Extension("tsx") => {
             optional!(#[cfg(any(feature = "transpile", feature = "compile"))] options.use_jsx |= mask.use_jsx);
-            update_options(Extension("ts"),options,mask);
+            update_options(OptionSource::Extension(String::from("ts")),options,mask);
         },
         Mime("text/javascript") | Extension("js") | SubExtension("d") | SubExtension("min") | _ => {}
     }
@@ -198,7 +220,6 @@ pub fn update_options<'a, 'b>(source: OptionSource<'a>, options: &'b mut Options
 
 
 
-use std::path::{Path,PathBuf};
-pub fn update_path(path: &PathBuf, options: &Options) -> PathBuf {
+fn update_path(_path: &PathBuf, _options: &Options) -> PathBuf {
     return PathBuf::new();
 }
