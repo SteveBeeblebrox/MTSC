@@ -42,6 +42,7 @@ c p | c
 c t | c
 c c | c
 */
+#[deprecated(note="use `update_options` instead")]
 pub fn update_options_by_ext<'a, 'b>(ext: String, options: &'a mut Options, update_options: &'b Options) -> &'a mut Options {
     let ext = ext.as_str();
     match ext {
@@ -148,36 +149,32 @@ pub fn get_result_ext(ext: String, options: &Options) -> String {
 use std::path::{Path,PathBuf};
 pub enum OptionSource {
     Mime(String),
-    Extension(String),
-    SubExtension(String),
     Path(PathBuf),
     None
 }
 
+enum InternalOptionSource<'a> {
+    Mime(&'a str),
+    Extension(&'a str),
+    SubExtension(&'a str),
+}
+
 pub fn update_options<'a>(source: OptionSource, options: &'a mut Options, mask: &'a Options) -> &'a mut Options {
-    if let OptionSource::Path(path) = source {
-        path.file_stem().and_then(|stem| Path::new(stem).extension()).and_then(|ext| ext.to_str()).map(|s| update_options(OptionSource::SubExtension(String::from(s)), options, mask));
-        path.extension().and_then(|ext| ext.to_str()).map(|s| update_options(OptionSource::Extension(String::from(s)), options, mask));
-        
-        return options;
+    match &source {
+        OptionSource::Mime(s) => {
+            update_options_internal(InternalOptionSource::Mime(&s), options,mask);
+        },
+        OptionSource::Path(path) => {
+            path.file_stem().and_then(|stem| Path::new(stem).extension()).and_then(|ext| ext.to_str()).map(|s| update_options_internal(InternalOptionSource::SubExtension(s), options, mask));
+            path.extension().and_then(|ext| ext.to_str()).map(|s| update_options_internal(InternalOptionSource::Extension(s), options, mask));    
+        },
+        OptionSource::None => {}
     }
-    
-    enum DowngradedOptionSource<'b> {
-        Mime(&'b str),
-        Extension(&'b str),
-        SubExtension(&'b str),
-        None
-    }
+    return options;
+}
 
-    let source = match &source {
-        OptionSource::Mime(s) => DowngradedOptionSource::Mime(&s),
-        OptionSource::Extension(s) => DowngradedOptionSource::Extension(&s),
-        OptionSource::SubExtension(s) => DowngradedOptionSource::SubExtension(&s),
-        OptionSource::None => DowngradedOptionSource::None,
-        _ => unreachable!()
-    };
-
-    use DowngradedOptionSource::*;
+fn update_options_internal<'a>(source: InternalOptionSource, options: &'a mut Options, mask: &'a Options) -> &'a mut Options {
+    use InternalOptionSource::*;
     match source {
         SubExtension("p") | SubExtension("pre") => {
             optional!(#[cfg(feature="preprocess")] options.preprocess |= mask.preprocess); 
@@ -200,7 +197,7 @@ pub fn update_options<'a>(source: OptionSource, options: &'a mut Options, mask: 
         },
         Extension("mts") => {
             optional!(#[cfg(feature="common")] options.module |= mask.module);
-            update_options(OptionSource::Extension(String::from("ts")),options,mask);
+            update_options_internal(InternalOptionSource::Extension("ts"),options,mask);
         },
         Extension("mjs") => {
             optional!(#[cfg(feature="common")] options.module |= mask.module);
@@ -210,7 +207,7 @@ pub fn update_options<'a>(source: OptionSource, options: &'a mut Options, mask: 
         },
         Extension("tsx") => {
             optional!(#[cfg(any(feature = "transpile", feature = "compile"))] options.use_jsx |= mask.use_jsx);
-            update_options(OptionSource::Extension(String::from("ts")),options,mask);
+            update_options_internal(InternalOptionSource::Extension("ts"),options,mask);
         },
         Mime("text/javascript") | Extension("js") | SubExtension("d") | SubExtension("min") | _ => {}
     }
@@ -220,6 +217,6 @@ pub fn update_options<'a>(source: OptionSource, options: &'a mut Options, mask: 
 
 
 
-fn update_path(_path: &PathBuf, _options: &Options) -> PathBuf {
+fn _update_path(_path: &PathBuf, _options: &Options) -> PathBuf {
     return PathBuf::new();
 }
