@@ -107,14 +107,6 @@ pub fn update_options_by_ext<'a, 'b>(ext: String, options: &'a mut Options, upda
 }
 
 macro_rules! optional {
-    ($expression:expr, $meta:meta) => {
-        {
-            #[cfg($meta)]
-            {Some($expression)}
-            #[cfg(not($meta))]
-            {None}
-        }
-    };
     (#[cfg($meta:meta)] $expression:expr) => {
         {
             #[cfg($meta)]
@@ -151,4 +143,62 @@ pub fn get_result_ext(ext: String, options: &Options) -> String {
         ;
 
     return String::from(if optional!(#[cfg(feature = "minify")] options.minify).unwrap_or_default() {"min."} else {""}) + result_ext;
+}
+
+
+pub enum OptionSource<'a> {
+    Mime(&'a str),
+    Extension(&'a str),
+    SubExtension(&'a str),
+    None
+}
+
+pub fn update_options<'a, 'b>(source: OptionSource<'a>, options: &'b mut Options, mask: &Options) -> &'b mut Options {
+    use OptionSource::*;
+
+    match source {
+        SubExtension("p") | SubExtension("pre") => {
+            optional!(#[cfg(feature="preprocess")] options.preprocess |= mask.preprocess); 
+        },
+        Mime("text/html") | Extension("html") => {
+            optional!(#[cfg(feature="html")] options.html |= mask.html);
+        },
+        Mime("text/typescript") | Extension("ts") | SubExtension("ts") => {
+            cfg_if! {
+                if #[cfg(all(feature = "compile", feature = "transpile"))] {
+                    if mask.ts > options.ts {
+                        options.ts = mask.ts;
+                    }
+                } else if #[cfg(feature = "compile")] {
+                    options.compile |= mask.compile;
+                } else if #[cfg(feature = "transpile")] {
+                    options.transpile |= mask.transpile;
+                }
+            }
+        },
+        Extension("mts") => {
+            optional!(#[cfg(feature="common")] options.module |= mask.module);
+            update_options(Extension("ts"),options,mask);
+        },
+        Extension("mjs") => {
+            optional!(#[cfg(feature="common")] options.module |= mask.module);
+        },
+        Extension("jsx") => {
+            optional!(#[cfg(any(feature = "transpile", feature = "compile"))] options.use_jsx |= mask.use_jsx);
+        },
+        Extension("tsx") => {
+            optional!(#[cfg(any(feature = "transpile", feature = "compile"))] options.use_jsx |= mask.use_jsx);
+            update_options(Extension("ts"),options,mask);
+        },
+        Mime("text/javascript") | Extension("js") | SubExtension("d") | SubExtension("min") | _ => {}
+    }
+
+    return options;
+}
+
+
+
+use std::path::{Path,PathBuf};
+pub fn update_path(path: &PathBuf, options: &Options) -> PathBuf {
+    return PathBuf::new();
 }
