@@ -2,8 +2,16 @@
 use super::common::{self,Options};
 
 use std::convert::TryFrom;
+use std::ops::Deref;
 
 static TERSER: &str = include_str!(r"terser.js");
+
+fn format_ecma_version_string<S: Deref<Target = str>>(target: S) -> String {
+    String::from(match target.to_lowercase().as_str() {
+        "esnext" => "2023",
+        v @ _ => v.strip_prefix("es").unwrap_or("esnext")
+    })
+}
 
 pub fn minify(text: String, options: &Options) -> Option<String> {
 
@@ -63,7 +71,7 @@ pub fn minify(text: String, options: &Options) -> Option<String> {
 
     // Compress Options
     let compress = v8::Object::new(scope);
-    v8_set!(compress.ecma = v8_str!(options.target.to_lowercase().strip_prefix("es")?));
+    v8_set!(compress.ecma = v8_str!(&format_ecma_version_string(options.target.clone())));
     v8_set!(compress.keep_classnames = v8_bool!(true));
 
     v8_set!(args.compress = compress.into());
@@ -76,7 +84,7 @@ pub fn minify(text: String, options: &Options) -> Option<String> {
 
     // Format Options
     let format = v8::Object::new(scope);
-    v8_set!(format.ecma = v8_str!(options.target.to_lowercase().strip_prefix("es")?));
+    v8_set!(format.ecma = v8_str!(&format_ecma_version_string(options.target.clone())));
     v8_set!(format.comments = v8_str!("/^!/"));
 
     v8_set!(args.format = format.into());
