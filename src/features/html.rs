@@ -93,12 +93,12 @@ impl<'a> TokenSink for &mut Document<'a> {
                         StartTag => {
                             if let Some(attr) = tag.attrs.iter_mut().find(|attr| attr.name.local.as_ref() == "type") {
                                 match attr.value.as_ref() {
-                                    "text/typescript" | "application/typescript" => {
+                                    "text/typescript" => {
                                         tag.attrs.retain(|attr| attr.name.local.as_ref() != "type");
                                         self.write_text(get_tag_str(tag));
                                         self.typescript_mode = TargetType::Classic
                                     },
-                                    "module/typescript" | "tsmodule" => {
+                                    "tsmodule" => {
                                         attr.value = StrTendril::from("module");
                                         self.write_text(get_tag_str(tag));
                                         self.typescript_mode = TargetType::Module
