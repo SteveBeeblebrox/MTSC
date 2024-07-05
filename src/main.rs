@@ -1,5 +1,5 @@
-use std::path::{Path, PathBuf};
 use std::io::{self, Read as _};
+use std::path::PathBuf;
 use std::process::exit;
 use std::panic;
 use std::fs;
@@ -155,9 +155,6 @@ fn main() {
 
         // Read input
         let maybe_filename: Option<String> = carg!("INPUT").filter(|v| *v != "-").or_else(|| carg!("name")).map(|v| String::from(v));
-        let maybe_ext: Option<String> = maybe_filename.as_ref().and_then(|v|
-            Path::new(v.as_str()).extension().map(|s| String::from(s.to_str().expect("could not get extension from path")))
-        );
 
         let text = match carg!("INPUT") {
             Some("-") | None => {
@@ -201,19 +198,15 @@ fn main() {
         let result = compile(text, &options).unwrap();
         
         // Write output
-        let maybe_result_ext = maybe_ext.map(|ext| mtsc::util::get_result_ext(ext,&options));
-
         match carg!("output") {
             Some("-") | Some("") if cflag!("output") => print!("{}",result),
             None | Some("") => {
                 match maybe_filename {
                     Some(ref filename) => {
                         let mut path = PathBuf::from(filename);
-                        if let Some(result_ext) = maybe_result_ext {
-                            path.set_extension(result_ext);
-                        }
+                        mtsc::util::update_path(&mut path,&options);
 
-                        if maybe_filename.is_some() && is_same_file(path.as_path(),maybe_filename.as_ref().unwrap()).unwrap_or(false) {
+                        if maybe_filename.is_some() && is_same_file(path.as_path(),maybe_filename.as_ref().unwrap()).unwrap_or_default() {
                             panic!("Output file is the same as the input");
                         }
 
@@ -226,14 +219,11 @@ fn main() {
                 let mut path = PathBuf::from(value);
 
                 if path.is_dir() {
-                    path.push(maybe_filename.as_ref().unwrap_or(&String::from("out")));
+                    path.push(maybe_filename.as_ref().unwrap_or(&String::from("out.js")));
+                    mtsc::util::update_path(&mut path,&options);
                 }
 
-                if let Some(result_ext) = maybe_result_ext {
-                    path.set_extension(result_ext);
-                }
-
-                if maybe_filename.is_some() && is_same_file(path.as_path(),maybe_filename.as_ref().unwrap()).unwrap_or(false) {
+                if maybe_filename.is_some() && is_same_file(path.as_path(),maybe_filename.as_ref().unwrap()).unwrap_or_default() {
                     panic!("Output file is the same as the input");
                 }
 
