@@ -190,8 +190,8 @@ fn main() {
             include_paths: cstrings!("include-paths"),
         };
 
-        if let Some(ref ext) = maybe_ext {
-            mtsc::util::update_options_by_ext(ext.clone(), &mut options, &Options {
+        if let Some(ref filename) = maybe_filename {
+            mtsc::util::update_options(mtsc::util::OptionSource::Name(filename.clone()), &mut options, &Options {
                 transpile: true,// !cflag!("preserve"),
                 ..mtsc::util::all_ext_options()
             });
