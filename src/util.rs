@@ -38,10 +38,12 @@ macro_rules! optional {
 }
 
 use std::path::{Path,PathBuf};
+#[derive(PartialEq,Eq,Default,Debug)]
 pub enum OptionSource {
     Mime(String),
     Name(String),
     Path(PathBuf),
+    #[default]
     None
 }
 
