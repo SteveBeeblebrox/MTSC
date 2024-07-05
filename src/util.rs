@@ -4,7 +4,7 @@ use crate::Options;
 #[cfg(all(feature = "compile", feature = "transpile"))]
 pub use crate::TSMode;
 
-pub fn all_ext_options() -> Options {
+pub fn all_options() -> Options {
     Options {
         #[cfg(all(feature = "transpile", feature = "compile"))]
         ts: TSMode::Transpile,
