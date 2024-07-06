@@ -5,7 +5,37 @@ use std::convert::TryFrom;
 
 static TYPESCRIPT: &str = include_str!(r"typescript.js");
 
-// TODO load snapshot
+#[allow(unused)]
+struct TS {
+    scope: &mut v8::ContextScope<'_, v8::HandleScope<'_>>
+}
+
+#[allow(unused)]
+fn init_ts() -> &'static TS {
+    use std::sync::OnceLock;
+    common::init_v8();
+
+    static ONCE: OnceLock<TS> = OnceLock::new();
+    return ONCE.get_or_init(|| {
+        common::init_v8();
+
+        let isolate = &mut v8::Isolate::new(Default::default());
+
+        let scope = &mut v8::HandleScope::new(isolate);
+        let context = v8::Context::new(scope);
+        let scope = &mut v8::ContextScope::new(scope, context);
+
+        let script = v8::String::new(scope, TYPESCRIPT).expect("Error with TS").into();
+        let script = v8::Script::compile(scope, script, None).expect("Error with TS");
+        script.run(scope).expect("Error with TS");
+
+        return TS {
+            scope
+        };
+    });
+}
+
+// TODO load snapshot?
 
 pub fn transpile(text: String, options: &Options) -> Option<String> {
     
