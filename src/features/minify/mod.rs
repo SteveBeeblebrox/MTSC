@@ -15,7 +15,7 @@ fn format_ecma_version_string<S: Deref<Target = str>>(target: S) -> String {
 
 pub fn minify(text: String, options: &Options) -> Option<String> {
 
-    common::init();
+    common::init_v8();
     
     let isolate = &mut v8::Isolate::new(Default::default());
 

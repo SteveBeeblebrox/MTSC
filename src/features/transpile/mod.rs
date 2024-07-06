@@ -5,9 +5,11 @@ use std::convert::TryFrom;
 
 static TYPESCRIPT: &str = include_str!(r"typescript.js");
 
+// TODO load snapshot
+
 pub fn transpile(text: String, options: &Options) -> Option<String> {
     
-    common::init();
+    common::init_v8();
     
     let isolate = &mut v8::Isolate::new(Default::default());
 
