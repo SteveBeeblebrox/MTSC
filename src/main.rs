@@ -188,7 +188,7 @@ fn main() {
         };
 
         if let Some(ref filename) = maybe_filename {
-            mtsc::util::update_options(mtsc::util::OptionSource::Name(filename.clone()), &mut options, &Options {
+            mtsc::util::update_options(mtsc::util::OptionSource::Path(PathBuf::from(filename)), &mut options, &Options {
                 transpile: true,// !cflag!("preserve"),
                 ..mtsc::util::all_options()
             });

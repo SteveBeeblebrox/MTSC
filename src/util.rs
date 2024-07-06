@@ -41,7 +41,6 @@ use std::path::{Path,PathBuf};
 #[derive(PartialEq,Eq,Default,Debug)]
 pub enum OptionSource {
     Mime(String),
-    Name(String),
     Path(PathBuf),
     #[default]
     None
@@ -114,9 +113,6 @@ pub fn update_options<'a>(source: OptionSource, options: &'a mut Options, mask: 
     match &source {
         OptionSource::Mime(s) => {
             update_options_internal(InternalOptionSource::Mime(&s), options, mask);
-        },
-        OptionSource::Name(name) => {
-            update_options(OptionSource::Path(PathBuf::from(name)), options, mask);
         },
         OptionSource::Path(path) => {
             path.file_stem().and_then(|stem| Path::new(stem).extension()).and_then(|ext| ext.to_str()).map(|s| update_options_internal(InternalOptionSource::SubExtension(s), options, mask));
