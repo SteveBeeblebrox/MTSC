@@ -153,11 +153,12 @@ struct Runtime<'a,'b> {
 
 impl Drop for Runtime<'_, '_> {
     fn drop(&mut self) {
+        use std::mem::drop;
         unsafe {
-            let _ = Box::from_raw(self.scope);
-            let _ = Box::from_raw(self.context);
-            let _ = Box::from_raw(self.handle);
-            let _ = Box::from_raw(self.isolate);
+            drop(Box::from_raw(self.scope));
+            drop(Box::from_raw(self.context));
+            drop(Box::from_raw(self.handle));
+            drop(Box::from_raw(self.isolate));
         };
     }
 }
