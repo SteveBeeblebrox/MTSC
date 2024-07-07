@@ -173,10 +173,8 @@ impl<'s, 'i> Runtime<'s, 'i> where 's: 'i, {
 
         let context = unsafe { Box::into_raw(Box::new(v8::Context::new(&mut *handle_scope))) };
 
-        let scope_ptr =
+        let scope =
             unsafe { Box::into_raw(Box::new(v8::ContextScope::new(&mut *handle_scope, *context))) };
-
-        let scope = unsafe { &mut *scope_ptr };
 
         return Runtime {isolate, handle: handle_scope, context, scope};
     }
