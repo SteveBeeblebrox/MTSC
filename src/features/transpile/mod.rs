@@ -98,9 +98,6 @@ pub fn transpile(text: String, options: &Options) -> Option<String> {
     return RUNTIME.with(|runtime| {
         let context = runtime.get_context();
         let scope = runtime.get_scope();
-        // let scope = &mut v8::HandleScope::new(isolate);
-        // let context = v8::Context::new(scope);
-        // let scope = &mut v8::ContextScope::new(scope, context);
     
         macro_rules! v8_str {
             ($expression:expr) => {
