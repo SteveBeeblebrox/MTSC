@@ -10,7 +10,8 @@ use std::sync::{Mutex,Once,Arc};
 use std::cell::RefCell;
 
 thread_local! {
-    static ISOLATE: RefCell<v8::OwnedIsolate> = RefCell::new(v8::Isolate::new(Default::default()));
+    static ISOLATE: RefCell<Option<v8::OwnedIsolate>> = RefCell::new(None);
+    // static HANDLE: RefCell<Option<v8::HandleScope>> = RefCell::new(None);
 }
 
 #[allow(unused)]
@@ -19,8 +20,14 @@ fn init_ts() {
     TS_INIT.call_once(|| {
         common::init_v8();
 
-        ISOLATE.with(|isolate| {
-            let mut isolate = isolate.borrow_mut();
+        ISOLATE.with_borrow_mut(|isolate| {
+            *isolate = Some(v8::Isolate::new(Default::default()));
+
+            // HANDLE.with_borrow_mut(|handle| {
+            //     *handle = v8
+            // });
+
+            let isolate = isolate.as_mut().unwrap();
 
             let scope = &mut v8::HandleScope::new(&mut *isolate);
             let context = v8::Context::new(scope);
