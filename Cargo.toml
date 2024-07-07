@@ -21,6 +21,8 @@ cxx = { version = "1.0", optional = true }
 
 serde = { version = "1.0", optional = true }
 
+lazy_static = { version = "1.5.0", optional = true }
+
 [build-dependencies]
 cc = "1.0.82"
 reqwest = "0.11.18"
@@ -38,7 +40,7 @@ default=["preprocess","transpile","minify","html","cli"]
 full=["transpile","compile","preprocess","minify","html"]
 cli=["dep:clap","dep:panic-message","dep:backtrace","dep:same-file"]
 
-common=["dep:v8"]
+common=["dep:v8", "dep:lazy_static"]
 
 compile=["common"]
 transpile=["common"]

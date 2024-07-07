@@ -5,35 +5,68 @@ use std::convert::TryFrom;
 
 static TYPESCRIPT: &str = include_str!(r"typescript.js");
 
-#[allow(unused)]
-struct TS {
-    scope: &mut v8::ContextScope<'_, v8::HandleScope<'_>>
+use lazy_static::lazy_static;
+use std::sync::{Mutex,Once,Arc};
+use std::cell::RefCell;
+
+thread_local! {
+    static ISOLATE: RefCell<v8::OwnedIsolate> = RefCell::new(v8::Isolate::new(Default::default()));
 }
 
 #[allow(unused)]
-fn init_ts() -> &'static TS {
-    use std::sync::OnceLock;
-    common::init_v8();
-
-    static ONCE: OnceLock<TS> = OnceLock::new();
-    return ONCE.get_or_init(|| {
+fn init_ts() {
+    static TS_INIT: Once = Once::new();
+    TS_INIT.call_once(|| {
         common::init_v8();
 
-        let isolate = &mut v8::Isolate::new(Default::default());
+        ISOLATE.with(|isolate| {
+            let mut isolate = isolate.borrow_mut();
 
-        let scope = &mut v8::HandleScope::new(isolate);
-        let context = v8::Context::new(scope);
-        let scope = &mut v8::ContextScope::new(scope, context);
+            let scope = &mut v8::HandleScope::new(&mut *isolate);
+            let context = v8::Context::new(scope);
+            let scope = &mut v8::ContextScope::new(scope, context);
 
-        let script = v8::String::new(scope, TYPESCRIPT).expect("Error with TS").into();
-        let script = v8::Script::compile(scope, script, None).expect("Error with TS");
-        script.run(scope).expect("Error with TS");
+            let script = v8::String::new(scope, TYPESCRIPT).expect("Error with TS").into();
+            let script = v8::Script::compile(scope, script, None).expect("Error with TS");
+            script.run(scope).expect("Error with TS");
+        });
 
-        return TS {
-            scope
-        };
     });
 }
+
+
+
+
+// thread_local! {
+//     static ISOLATE: RefCell<v8::OwnedIsolate> = RefCell::new(v8::Isolate::new(Default::default()));
+// }
+// thread_local! {
+//     static HANDLE: v8::HandleScope<'static,()> = v8::HandleScope::new(&mut ISOLATE.get());
+// }
+
+// #[allow(unused)]
+// fn init_ts() -> &'static TS {
+//     common::init_v8();
+
+//     static ONCE: OnceLock<TS> = OnceLock::new();
+//     return ONCE.get_or_init(|| {
+//         common::init_v8();
+
+//         static isolate = v8::Isolate::new(Default::default());
+
+//         let scope = &mut v8::HandleScope::new(&mut isolate);
+//         let context = v8::Context::new(scope);
+//         let scope = &mut v8::ContextScope::new(scope, context);
+
+//         let script = v8::String::new(scope, TYPESCRIPT).expect("Error with TS").into();
+//         let script = v8::Script::compile(scope, script, None).expect("Error with TS");
+//         script.run(scope).expect("Error with TS");
+
+//         return TS {
+//             scope
+//         };
+//     });
+// }
 
 // TODO load snapshot?
 
