@@ -1,5 +1,8 @@
 // Shared Code
-pub mod common;
+mod common;
+pub use common::Options;
+#[cfg(all(feature = "transpile", feature = "compile"))]
+pub use common::TSMode;
 
 // Compile Feature
 #[cfg(feature = "compile")]

@@ -5,7 +5,7 @@ use html5ever::tokenizer::{
     ParseError, Token, TokenSink, TokenSinkResult, Tokenizer, TokenizerOpts, BufferQueue, Tag
 };
 
-use super::common::Options;
+use crate::Options;
 
 #[derive(PartialEq)]
 enum TargetType {

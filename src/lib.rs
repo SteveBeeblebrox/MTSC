@@ -1,7 +1,8 @@
+#![feature(macro_metavar_expr)]
 mod features;
-pub use features::common::Options;
+pub use features::Options;
 #[cfg(all(feature = "compile", feature = "transpile"))]
-pub use features::common::TSMode;
+pub use features::TSMode;
 
 pub mod util;
 
