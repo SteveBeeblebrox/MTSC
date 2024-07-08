@@ -8,31 +8,6 @@ use std::sync::Once;
 
 static TYPESCRIPT: &str = include_str!(r"typescript.js");
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    macro_rules! timer {
-        ($msg:literal,$expression:expr) => {
-            {
-                let timer_instant = std::time::Instant::now();
-                let rvalue = $expression;
-                eprintln!($msg, format!("{:.2?}", timer_instant.elapsed()));
-                rvalue
-            }
-        };
-        ($expression:expr) => {
-            timer!("Time Elapsed: {:.2?}",$expr)
-        };
-    }
-
-    #[test]
-    fn time() {
-        timer!("Run 0: {}", assert!(transpile(String::from("let x: number = 1;"), &Default::default()) == Some("let x = 1;\n".to_string()), "Unexpected compile result 0!"));
-        timer!("Run 1: {}", assert!(transpile(String::from("let x: number = 1;"), &Default::default()) == Some("let x = 1;\n".to_string()), "Unexpected compile result 1!"));
-        timer!("Run 2: {}", assert!(transpile(String::from("let x: number = 1;"), &Default::default()) == Some("let x = 1;\n".to_string()), "Unexpected compile result 2!"));
-    }
-}
-
 pub fn transpile(text: String, options: &Options) -> Option<String> {
     return with_v8! {
         use runtime = RUNTIME;
