@@ -1,4 +1,4 @@
-use super::common::Options;
+use crate::Options;
 
 mod wave;
 

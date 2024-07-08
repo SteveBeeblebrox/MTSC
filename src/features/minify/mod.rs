@@ -1,7 +1,9 @@
 // Minify Feature
-use super::common::{self,Options};
+use super::common::{with_v8,RUNTIME};
+use crate::Options;
 
 use std::convert::TryFrom;
+use std::sync::Once;
 use std::ops::Deref;
 
 static TERSER: &str = include_str!(r"terser.js");
@@ -13,6 +15,60 @@ fn format_ecma_version_string<S: Deref<Target = str>>(target: S) -> String {
     })
 }
 
+pub fn minify(text: String, options: &Options) -> Option<String> {
+    return with_v8! {
+        use runtime = RUNTIME;
+        let context = runtime.get_context();
+        let scope = runtime.get_scope();
+
+        static TERSER_INIT: Once = Once::new();
+        TERSER_INIT.call_once(|| {
+            runtime.run(TERSER).expect("Error loading minifier");
+        });
+
+        let global_this = context.global(scope);
+        let terser = v8_get!(global_this.Terser)?.to_object(scope)?;
+        let minify = v8::Local::<v8::Function>::try_from(v8_get!(terser.minify)?.to_object(scope)?).ok()?;
+    
+        let text = v8_str!(text.as_str());
+
+        // See https://github.com/terser/terser/blob/master/tools/terser.d.ts
+        // https://terser.org/docs/options/
+        let args: v8::Local<v8::Object> = v8_object!({
+            module: v8_bool!(options.module),
+            keep_classnames: v8_bool!(true),
+            compress: v8_object!({
+                ecma: v8_str!(&format_ecma_version_string(options.target.clone()))
+            }),
+            mangle: v8_object!({
+
+            }),
+            format: v8_object!({
+                ecma: v8_str!(&format_ecma_version_string(options.target.clone())),
+                comments: v8_str!("/^!/")
+            })
+        });
+
+        let result = minify.call(scope, terser.into(), &[text, args.into()])?;
+
+        if result.is_promise() {
+            let promise = v8::Local::<v8::Promise>::try_from(result).ok()?;
+
+            while promise.state() == v8::PromiseState::Pending {
+                scope.perform_microtask_checkpoint();
+            }
+            if promise.state() == v8::PromiseState::Rejected {
+                panic!("Promise rejected");
+            } else {
+                let resolved = promise.result(scope).to_object(scope)?;
+                return Some(v8_get!(resolved.code)?.to_string(scope)?.to_rust_string_lossy(scope));
+            }
+        } else {
+            panic!("Value is not a promise");
+        }
+    }
+}
+/*
 pub fn minify(text: String, options: &Options) -> Option<String> {
 
     common::init_v8();
@@ -106,4 +162,4 @@ pub fn minify(text: String, options: &Options) -> Option<String> {
     } else {
         panic!("Value is not a promise");
     }
-}
+}*/
