@@ -1,6 +1,6 @@
 
 // Transpile Feature
-use super::common::{with_v8,RUNTIME};
+use super::common::{with_v8,SHARED_RUNTIME};
 use crate::Options;
 
 use std::convert::TryFrom;
@@ -10,7 +10,7 @@ static TYPESCRIPT: &str = include_str!(r"typescript.js");
 
 pub fn transpile(text: String, options: &Options) -> Option<String> {
     return with_v8! {
-        use runtime = RUNTIME;
+        use runtime = SHARED_RUNTIME;
         let context = runtime.get_context();
         let scope = runtime.get_scope();
         

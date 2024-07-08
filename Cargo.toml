@@ -47,4 +47,3 @@ preprocess=["dep:cxx"]
 html=["dep:html5ever"]
 
 serde=["dep:serde"]
-external-v8=[]

@@ -1,5 +1,7 @@
 // Shared Code
 use fancy_default::Default;
+use runtime::Runtime;
+use std::sync::{Mutex,LazyLock};
 
 #[cfg(all(feature = "transpile", feature = "compile"))]
 #[derive(Default,Debug,PartialEq,PartialOrd)]
@@ -55,14 +57,35 @@ pub struct Options {
     pub html: bool,
 }
 
+// #[cfg(feature = "common")]
+// thread_local! {
+//     pub(in crate::features) static TLS_RUNTIME: runtime::Runtime<'static,'static> = runtime::Runtime::new();
+// }
+
 #[cfg(feature = "common")]
-thread_local! {
-    pub(in crate::features) static RUNTIME: runtime::Runtime<'static,'static> = runtime::Runtime::new();
+pub(in crate::features) static SHARED_RUNTIME: Mutex<LazyLock<Runtime>> = Mutex::new(LazyLock::new(Runtime::new));
+
+
+#[cfg(feature = "common")]
+pub fn init_v8(primary: bool) {
+    runtime::init_v8(primary);
+    LazyLock::force(&SHARED_RUNTIME.lock().unwrap());
 }
 
 #[cfg(feature = "common")]
 pub(in crate::features) mod runtime {
-    use std::sync::Once;
+    pub(in crate::features) fn init_v8(primary: bool) {
+        use std::sync::Once;
+        static V8_INIT: Once = Once::new();
+    
+        V8_INIT.call_once(|| {
+            if primary {
+                let platform = v8::new_default_platform(0, false).make_shared();
+                v8::V8::initialize_platform(platform);
+                v8::V8::initialize();
+            }
+        });
+    }
 
     // Based on https://github.com/Valerioageno/ssr-rs/blob/main/src/ssr.rs
     pub(in crate::features) struct Runtime<'s,'i> {
@@ -71,6 +94,8 @@ pub(in crate::features) mod runtime {
         context: *mut v8::Local<'s, v8::Context>,
         scope: *mut v8::ContextScope<'i, v8::HandleScope<'s,v8::Context>>,
     }
+
+    unsafe impl Send for Runtime<'static,'static> {}
 
     impl Drop for Runtime<'_, '_> {
         fn drop(&mut self) {
@@ -87,15 +112,7 @@ pub(in crate::features) mod runtime {
     #[allow(unused)]
     impl<'s, 'i> Runtime<'s, 'i> where 's: 'i, {
         pub(in crate::features) fn new() -> Self {
-            #[cfg(not(feature = "external-v8"))]
-            static V8_INIT: Once = Once::new();
-
-            #[cfg(not(feature = "external-v8"))]
-            V8_INIT.call_once(|| {
-                let platform = v8::new_default_platform(0, false).make_shared();
-                v8::V8::initialize_platform(platform);
-                v8::V8::initialize();
-            });
+            init_v8(true);
 
             let isolate = Box::into_raw(Box::new(v8::Isolate::new(v8::CreateParams::default())));
             let handle = unsafe { Box::into_raw(Box::new(v8::HandleScope::new(&mut *isolate))) };
@@ -142,6 +159,12 @@ pub(in crate::features) mod runtime {
     impl UsingRuntime<'static,'static, 'static> for std::thread::LocalKey<Runtime<'static,'static>> {
         fn using_runtime<F, R>(&'static self, f: F) -> R where F: FnOnce(&Runtime<'static,'static>) -> R {
             self.with(f)
+        }
+    }
+    
+    impl UsingRuntime<'static,'static, 'static> for std::sync::Mutex<std::sync::LazyLock<Runtime<'static,'static>>> {
+        fn using_runtime<F, R>(&'static self, f: F) -> R where F: FnOnce(&Runtime<'static,'static>) -> R {
+            f(&*self.lock().unwrap())
         }
     }
 }

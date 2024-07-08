@@ -4,6 +4,9 @@ pub use features::Options;
 #[cfg(all(feature = "compile", feature = "transpile"))]
 pub use features::TSMode;
 
+#[cfg(feature = "common")]
+pub use features::init_v8;
+
 pub mod util;
 
 use cfg_if::cfg_if;
