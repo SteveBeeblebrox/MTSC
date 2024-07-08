@@ -150,7 +150,7 @@ pub(in crate::features) mod runtime {
 macro_rules! with_v8 {
     (use $runtime:ident = $src:expr; $($body:tt)*) => {
         {
-            use crate::features::common::runtime::UsingRuntime as _;
+            use $crate::features::common::runtime::UsingRuntime as _;
             $src.using_runtime(|$runtime| {
                 #[allow(unused_macros)]
                 macro_rules! v8_str {
