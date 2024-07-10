@@ -15,6 +15,9 @@ pub fn init_v8() {
     V8_INIT.with(|it| it.call_once(|| {
         with_v8! {
             use _ = SHARED_RUNTIME;
+            /*runtime.add_near_heap_limit_callback(|current,_initial| {
+                return current * 2;
+            })*/
         }
     })); 
 }
@@ -28,10 +31,18 @@ macro_rules! with_v8 {
             })
         }
     };
+    (use $runtime:ident = $runtime_src:expr; $($body:tt)*) => {
+        {
+            $runtime_src.with_borrow_mut(|$runtime| {
+                $($body)*
+            })
+        }
+    };
     (use $runtime:ident($scope:ident, $context:ident) = $runtime_src:expr; $($body:tt)*) => {
         {
             $runtime_src.with_borrow_mut(|$runtime| {
                 use deno_core::v8;
+                $runtime.v8_isolate().low_memory_notification();
                 let $scope = &mut $runtime.handle_scope();
                 let $context = $scope.get_current_context();
 
