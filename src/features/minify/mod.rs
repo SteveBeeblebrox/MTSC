@@ -1,12 +1,9 @@
 // Minify Feature
-use super::common::{with_v8,SHARED_RUNTIME};
+use super::common::{with_v8,include_script,SHARED_RUNTIME};
 use crate::Options;
 
 use std::convert::TryFrom;
-use std::sync::Once;
 use std::ops::Deref;
-
-static TERSER: &str = include_str!(r"terser.js");
 
 fn format_ecma_version_string<S: Deref<Target = str>>(target: S) -> String {
     String::from(match target.to_lowercase().as_str() {
@@ -16,15 +13,10 @@ fn format_ecma_version_string<S: Deref<Target = str>>(target: S) -> String {
 }
 
 pub fn minify(text: String, options: &Options) -> Option<String> {
-    return with_v8! {
-        use runtime = SHARED_RUNTIME;
-        let context = runtime.get_context();
-        let scope = runtime.get_scope();
+    include_script!(SHARED_RUNTIME,r"terser.js");
 
-        static TERSER_INIT: Once = Once::new();
-        TERSER_INIT.call_once(|| {
-            runtime.run(TERSER).expect("Error loading minifier");
-        });
+    return with_v8! {
+        use runtime(scope,context) = SHARED_RUNTIME;
 
         let global_this = context.global(scope);
         let terser = v8_get!(global_this.Terser)?.to_object(scope)?;

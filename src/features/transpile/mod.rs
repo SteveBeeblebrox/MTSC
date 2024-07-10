@@ -1,25 +1,17 @@
 
 // Transpile Feature
-use super::common::{with_v8,SHARED_RUNTIME};
+use super::common::{with_v8,include_script,SHARED_RUNTIME};
 use crate::Options;
 
 use std::convert::TryFrom;
-use std::sync::Once;
-
-static TYPESCRIPT: &str = include_str!(r"typescript.js");
 
 pub fn transpile(text: String, options: &Options) -> Option<String> {
+    include_script!(SHARED_RUNTIME, r"typescript.js");
+
     return with_v8! {
-        use runtime = SHARED_RUNTIME;
-        let context = runtime.get_context();
-        let scope = runtime.get_scope();
+        use runtime(scope,context) = SHARED_RUNTIME;
         
-        static TYPESCRIPT_INIT: Once = Once::new();
-        TYPESCRIPT_INIT.call_once(|| {
-            runtime.run(TYPESCRIPT).expect("Error loading TypeScript");
-        });
-    
-        let global_this = context.global(scope);
+        let global_this = global_this!();
         let ts = v8_get!(global_this.ts)?.to_object(scope)?;
         let transpile = v8::Local::<v8::Function>::try_from(v8_get!(ts.transpile)?.to_object(scope)?).ok()?;
     
@@ -39,7 +31,6 @@ pub fn transpile(text: String, options: &Options) -> Option<String> {
             }
         }
     
-        return Some(transpile.call(scope, ts.into(), &[text, args.into()])?.to_string(scope)?
-            .to_rust_string_lossy(scope))
+        return Some(transpile.call(scope, ts.into(), &[text, args.into()])?.to_rust_string_lossy(scope))
     }
 }

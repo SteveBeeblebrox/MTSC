@@ -15,7 +15,7 @@ panic-message = { version = "0.3.0", optional = true }
 backtrace = { version = "0.3.64", optional = true }
 same-file = { version = "1.0.6", optional = true }
 
-v8 = { version = "0.94.0", optional = true }
+deno_core = { version = "0.291.0", optional = true }
 html5ever = { version = "0.26.0", optional = true }
 cxx = { version = "1.0", optional = true }
 
@@ -24,7 +24,7 @@ serde = { version = "1.0", optional = true }
 [build-dependencies]
 cc = "1.0.82"
 reqwest = "0.11.18"
-tokio = { version = "1.20.4", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 cxx-build = "1.0"
 
 [profile.release]
@@ -38,7 +38,7 @@ default=["preprocess","transpile","minify","html","cli"]
 full=["transpile","compile","preprocess","minify","html"]
 cli=["dep:clap","dep:panic-message","dep:backtrace","dep:same-file"]
 
-common=["dep:v8"]
+common=["dep:deno_core"]
 
 compile=["common"]
 transpile=["common"]
