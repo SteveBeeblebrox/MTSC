@@ -8,10 +8,15 @@ thread_local! {
     }));
 }
 
-pub fn init_v8() {    
-    with_v8! {
-        use _ = SHARED_RUNTIME;
+pub fn init_v8() {
+    thread_local! {
+        static V8_INIT: std::sync::Once = std::sync::Once::new();
     }
+    V8_INIT.with(|it| it.call_once(|| {
+        with_v8! {
+            use _ = SHARED_RUNTIME;
+        }
+    })); 
 }
 
 #[macro_export]
