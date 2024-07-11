@@ -3,6 +3,7 @@ use super::common::{with_v8,include_script,SHARED_RUNTIME};
 use crate::Options;
 
 use std::convert::TryFrom;
+use std::sync::Once;
 use std::ops::Deref;
 
 fn format_ecma_version_string<S: Deref<Target = str>>(target: S) -> String {
@@ -13,14 +14,17 @@ fn format_ecma_version_string<S: Deref<Target = str>>(target: S) -> String {
 }
 
 pub fn minify(text: String, options: &Options) -> Option<String> {
-    include_script!(SHARED_RUNTIME,r"terser.js");
+    static TERSER_INIT: Once = Once::new();
+    TERSER_INIT.call_once(|| {
+        include_script!(SHARED_RUNTIME,r"terser.js");
+    });
 
     return with_v8! {
-        use runtime(scope,context) = SHARED_RUNTIME;
+        use runtime = SHARED_RUNTIME;
 
-        let global_this = context.global(scope);
-        let terser = v8_get!(global_this.Terser)?.to_object(scope)?;
-        let minify = v8::Local::<v8::Function>::try_from(v8_get!(terser.minify)?.to_object(scope)?).ok()?;
+        let global_this = global_this!();
+        let terser = v8_get!(global_this.Terser)?.to_object(scope!())?;
+        let minify = v8::Local::<v8::Function>::try_from(v8_get!(terser.minify)?.to_object(scope!())?).ok()?;
     
         let text = v8_str!(text.as_str());
 
@@ -41,19 +45,20 @@ pub fn minify(text: String, options: &Options) -> Option<String> {
             })
         });
 
-        let result = minify.call(scope, terser.into(), &[text, args.into()])?;
+        let result = minify.call(scope!(), terser.into(), &[text, args.into()])?;
 
         if result.is_promise() {
             let promise = v8::Local::<v8::Promise>::try_from(result).ok()?;
 
             while promise.state() == v8::PromiseState::Pending {
-                scope.perform_microtask_checkpoint();
+                scope!().perform_microtask_checkpoint();
             }
+            
             if promise.state() == v8::PromiseState::Rejected {
                 panic!("Promise rejected");
             } else {
-                let resolved = promise.result(scope).to_object(scope)?;
-                return Some(v8_get!(resolved.code)?.to_string(scope)?.to_rust_string_lossy(scope));
+                let resolved = promise.result(scope!()).to_object(scope!())?;
+                return Some(v8_get!(resolved.code)?.to_string(scope!())?.to_rust_string_lossy(scope!()));
             }
         } else {
             panic!("Value is not a promise");
