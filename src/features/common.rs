@@ -20,6 +20,10 @@ pub(in crate::features) mod runtime {
     use std::cell::RefCell;
     use std::thread::LocalKey;
 
+    extern "C" fn get_new_heap_size(_data: *mut std::ffi::c_void, current_heap_limit: usize, _initial_heap_limit: usize) -> usize {
+        return 2*current_heap_limit;
+    }
+    
     pub(in crate::features::common) fn init_v8(primary: bool) {
         use std::sync::Once;
         static V8_INIT: Once = Once::new();
@@ -47,6 +51,8 @@ pub(in crate::features) mod runtime {
             init_v8(true);
 
             let mut isolate = v8::Isolate::new(Default::default());
+            isolate.add_near_heap_limit_callback(get_new_heap_size, std::ptr::null_mut());
+
             let context = {
                 let handle_scope = &mut v8::HandleScope::new(&mut isolate);
                 let context = v8::Context::new(handle_scope);
