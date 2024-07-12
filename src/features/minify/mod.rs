@@ -1,9 +1,8 @@
 // Minify Feature
-use super::common::{with_v8,include_script,SHARED_RUNTIME};
+use super::common::{with_v8,include_script,once_per_thread,TLS_RUNTIME};
 use crate::Options;
 
 use std::convert::TryFrom;
-use std::sync::Once;
 use std::ops::Deref;
 
 fn format_ecma_version_string<S: Deref<Target = str>>(target: S) -> String {
@@ -14,13 +13,10 @@ fn format_ecma_version_string<S: Deref<Target = str>>(target: S) -> String {
 }
 
 pub fn minify(text: String, options: &Options) -> Option<String> {
-    static TERSER_INIT: Once = Once::new();
-    TERSER_INIT.call_once(|| {
-        include_script!(SHARED_RUNTIME,r"terser.js");
-    });
+    once_per_thread!(include_script!(TLS_RUNTIME,r"terser.js"));
 
     return with_v8! {
-        use runtime = SHARED_RUNTIME;
+        use runtime = TLS_RUNTIME;
 
         let global_this = global_this!();
         let terser = v8_get!(global_this.Terser)?.to_object(scope!())?;

@@ -1,18 +1,14 @@
 // Transpile Feature
-use super::common::{with_v8,include_script,SHARED_RUNTIME};
+use super::common::{with_v8,include_script,once_per_thread,TLS_RUNTIME};
 use crate::Options;
 
 use std::convert::TryFrom;
-use std::sync::Once;
 
 pub fn transpile(text: String, options: &Options) -> Option<String> {
-    static TYPESCRIPT_INIT: Once = Once::new();
-    TYPESCRIPT_INIT.call_once(|| {
-        include_script!(SHARED_RUNTIME, r"typescript.js");
-    });
+    once_per_thread!(include_script!(TLS_RUNTIME, r"typescript.js"));
 
     return with_v8! {
-        use runtime = SHARED_RUNTIME;
+        use runtime = TLS_RUNTIME;
         
         let global_this = global_this!();
         let ts = v8_get!(global_this.ts)?.to_object(scope!())?;
