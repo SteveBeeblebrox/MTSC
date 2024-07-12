@@ -660,6 +660,7 @@ dependencies = [
  "fancy-default",
  "html5ever",
  "or_panic",
+ "os-thread-local",
  "panic-message",
  "reqwest",
  "same-file",
@@ -764,6 +765,16 @@ dependencies = [
 name = "or_panic"
 version = "1.0.0"
 source = "git+https://github.com/SteveBeeblebrox/or_panic.git#7be145a16b0206e43964b0230275f3951123b278"
+
+[[package]]
+name = "os-thread-local"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd7fc7fa9ea7dc8907f9b10e730106ed0011926e7f5abb382530ac91d1af2b7c"
+dependencies = [
+ "libc",
+ "winapi",
+]
 
 [[package]]
 name = "panic-message"
