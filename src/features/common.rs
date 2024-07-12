@@ -1,5 +1,6 @@
 // Shared Code
 use runtime::Runtime;
+
 use std::cell::RefCell;
 
 thread_local! {
@@ -40,7 +41,7 @@ pub(in crate::features) mod runtime {
     impl Runtime {
         pub fn new() -> Self {
             init_v8(true);
-
+            
             let mut isolate = v8::Isolate::new(Default::default());
             isolate.add_near_heap_limit_callback(get_new_heap_size, std::ptr::null_mut());
 
