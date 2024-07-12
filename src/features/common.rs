@@ -2,10 +2,10 @@
 use runtime::Runtime;
 
 use std::cell::RefCell;
+use std::sync::LazyLock;
+use os_thread_local::ThreadLocal;
 
-thread_local! {
-    pub(in crate::features) static TLS_RUNTIME: RefCell<Runtime> = RefCell::new(Runtime::new());
-}
+pub(in crate::features) static TLS_RUNTIME: LazyLock<ThreadLocal<RefCell<Runtime>>> = LazyLock::new(|| ThreadLocal::new(|| RefCell::new(Runtime::new())));
 
 pub fn init_v8(primary: bool) {
     runtime::init_v8(primary);
@@ -14,7 +14,8 @@ pub fn init_v8(primary: bool) {
 
 pub(in crate::features) mod runtime {
     use std::cell::RefCell;
-    use std::thread::LocalKey;
+    use std::sync::LazyLock;
+    use os_thread_local::ThreadLocal;
     use super::once;
 
     extern "C" fn get_new_heap_size(_data: *mut std::ffi::c_void, current_heap_limit: usize, _initial_heap_limit: usize) -> usize {
@@ -76,9 +77,9 @@ pub(in crate::features) mod runtime {
         fn using_runtime<F, R>(&'x self, f: F) -> R where F: FnOnce(&mut Runtime) -> R;
     }
 
-    impl UsingRuntime<'static> for LocalKey<RefCell<Runtime>> {
+    impl UsingRuntime<'static> for LazyLock<ThreadLocal<RefCell<Runtime>>> {
         fn using_runtime<F, R>(&'static self, f: F) -> R where F: FnOnce(&mut Runtime) -> R {
-            return self.with_borrow_mut(f);
+            return self.with(|cell| f(&mut cell.borrow_mut()));
         }
     }
 }
